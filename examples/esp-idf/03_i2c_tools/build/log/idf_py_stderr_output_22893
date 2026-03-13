@@ -1,0 +1,3 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python -DESP_PLATFORM=1 -DIDF_TARGET=esp32p4 -DCCACHE_ENABLE=0 /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools
+info: Choice ESPTOOLPY_FLASHSIZE has multiple active selections. The last one will be used: ESPTOOLPY_FLASHSIZE_2MB .
+info: Choice PARTITION_TABLE_TYPE has multiple active selections. The last one will be used: PARTITION_TABLE_CUSTOM .

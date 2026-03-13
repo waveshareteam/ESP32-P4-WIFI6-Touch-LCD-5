@@ -1,0 +1,81 @@
+Command: ninja flash
+[1/5] cd /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/esp-idf/esptool_py && /home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/yeechan/esp-idf-v5.5.3/components/partition_table/check_sizes.py --offset 0x8000 partition --type app /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/partition_table/partition-table.bin /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/i2s-es8311-example.bin
+i2s-es8311-example.bin binary size 0xd9910 bytes. Smallest app partition is 0x100000 bytes. 0x266f0 bytes (15%) free.
+[2/5] Performing build step for 'bootloader'
+[1/1] cd /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader/esp-idf/esptool_py && /home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/yeechan/esp-idf-v5.5.3/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x2000 /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader/bootloader.bin
+Bootloader binary size 0x5dd0 bytes. 0x230 bytes (2%) free.
+[3/5] No install step for 'bootloader'
+[4/5] Completed 'bootloader'
+[4/5] cd /home/yeechan/esp-idf-v5.5.3/components/esptool_py && /usr/bin/cmake -D IDF_PATH=/home/yeechan/esp-idf-v5.5.3 -D "SERIAL_TOOL=/home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python;;/home/yeechan/esp-idf-v5.5.3/components/esptool_py/esptool/esptool.py;--chip;esp32p4" -D "SERIAL_TOOL_ARGS=--before=default_reset;--after=hard_reset;write_flash;@flash_args" -D WORKING_DIRECTORY=/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build -P /home/yeechan/esp-idf-v5.5.3/components/esptool_py/run_serial_tool.cmake
+esptool.py --chip esp32p4 -p /dev/ttyACM0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 16MB 0x2000 bootloader/bootloader.bin 0x10000 i2s-es8311-example.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.12.dev1
+Serial port /dev/ttyACM0
+Connecting....
+Chip is ESP32-P4 (revision v1.3)
+Features: High-Performance MCU
+Crystal is 40MHz
+MAC: 80:f1:b2:d1:c3:f8
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Flash will be erased from 0x00002000 to 0x00007fff...
+Flash will be erased from 0x00010000 to 0x000e9fff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 24016 bytes to 14862...
+Writing at 0x00002000... (100 %)
+Wrote 24016 bytes (14862 compressed) at 0x00002000 in 0.6 seconds (effective 314.9 kbit/s)...
+Hash of data verified.
+Compressed 891152 bytes to 639350...
+Writing at 0x00010000... (2 %)
+Writing at 0x0001d145... (5 %)
+Writing at 0x000220fe... (7 %)
+Writing at 0x00027a00... (10 %)
+Writing at 0x0002c970... (12 %)
+Writing at 0x000319c4... (15 %)
+Writing at 0x00036ccf... (17 %)
+Writing at 0x0003bac7... (20 %)
+Writing at 0x00041035... (22 %)
+Writing at 0x00046170... (25 %)
+Writing at 0x0004b15f... (27 %)
+Writing at 0x00050652... (30 %)
+Writing at 0x000555b1... (32 %)
+Writing at 0x0005ab3a... (35 %)
+Writing at 0x0005fa1a... (37 %)
+Writing at 0x0006478d... (40 %)
+Writing at 0x00069af9... (42 %)
+Writing at 0x0006eae2... (45 %)
+Writing at 0x00074031... (47 %)
+Writing at 0x0007942b... (50 %)
+Writing at 0x0007e27f... (52 %)
+Writing at 0x0008364e... (55 %)
+Writing at 0x0008808a... (57 %)
+Writing at 0x0008d1d0... (60 %)
+Writing at 0x00092370... (62 %)
+Writing at 0x00096f40... (65 %)
+Writing at 0x0009bbd8... (67 %)
+Writing at 0x000a08a7... (70 %)
+Writing at 0x000a5704... (72 %)
+Writing at 0x000aadff... (75 %)
+Writing at 0x000af98a... (77 %)
+Writing at 0x000b4567... (80 %)
+Writing at 0x000bad7c... (82 %)
+Writing at 0x000c118c... (85 %)
+Writing at 0x000c73f8... (87 %)
+Writing at 0x000ce85f... (90 %)
+Writing at 0x000d4b7d... (92 %)
+Writing at 0x000daf26... (95 %)
+Writing at 0x000e14c7... (97 %)
+Writing at 0x000e9595... (100 %)
+Wrote 891152 bytes (639350 compressed) at 0x00010000 in 13.9 seconds (effective 514.6 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 103...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (103 compressed) at 0x00008000 in 0.0 seconds (effective 534.6 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...

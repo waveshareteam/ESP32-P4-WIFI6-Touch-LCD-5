@@ -1,0 +1,7 @@
+Command: /home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/yeechan/esp-idf-v5.5.3/tools/idf_monitor.py -p /dev/ttyACM0 -b 115200 --toolchain-prefix riscv32-esp-elf- --target esp32p4 --revision 1 --decode-panic backtrace /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/i2s-es8311-example.elf /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader/bootloader.elf -m '/home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python' '/home/yeechan/esp-idf-v5.5.3/tools/idf.py'
+[0;33m--- esp-idf-monitor 1.9.0 on /dev/ttyACM0 115200[0m
+[0;33m--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H[0m
+[0m--- 0x4ff29ed0: [0;33mesp_bootloader_get_description[0m[0m at [0;32m/home/yeechan/esp-idf-v5.5.3/components/esp_bootloader_format/esp_bootloader_desc.c[0m[0m:[1;31m39[0m
+[0m--- 0x4ff2cbd0: [0;33mesp_flash_encryption_enabled[0m[0m at [0;32m/home/yeechan/esp-idf-v5.5.3/components/bootloader_support/src/flash_encrypt.c[0m[0m:[1;31m89[0m
+[0m--- 0x4ff29eda: [0;33mcall_start_cpu0[0m[0m at [0;32m/home/yeechan/esp-idf-v5.5.3/components/bootloader/subproject/main/bootloader_start.c[0m[0m:[1;31m27[0m
+[0m

@@ -1,0 +1,84 @@
+Command: ninja flash
+[1/11] Linking C static library esp-idf/espressif__libpng/libespressif__libpng.a
+[2/11] Performing build step for 'bootloader'
+[1/1] cd /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/09_video_lcd_display/build/bootloader/esp-idf/esptool_py && /home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/yeechan/esp-idf-v5.5.3/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x2000 /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/09_video_lcd_display/build/bootloader/bootloader.bin
+Bootloader binary size 0x5dd0 bytes. 0x230 bytes (2%) free.
+[3/11] No install step for 'bootloader'
+[4/11] Completed 'bootloader'
+[5/11] Linking C static library esp-idf/lvgl__lvgl/liblvgl__lvgl.a
+[6/11] Linking C static library esp-idf/espressif__esp_lv_fs/libespressif__esp_lv_fs.a
+[7/11] Generating esp-idf/esp_system/ld/sections.ld
+[8/11] Linking CXX executable video_lcd_display.elf
+[9/11] Generating binary image from built executable
+esptool.py v4.12.dev1
+Creating esp32p4 image...
+Merged 3 ELF sections
+Successfully created esp32p4 image.
+Generated /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/09_video_lcd_display/build/video_lcd_display.bin
+[10/11] cd /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/09_video_lcd_display/build/esp-idf/esptool_py && /home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/yeechan/esp-idf-v5.5.3/components/partition_table/check_sizes.py --offset 0x8000 partition --type app /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/09_video_lcd_display/build/partition_table/partition-table.bin /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/09_video_lcd_display/build/video_lcd_display.bin
+video_lcd_display.bin binary size 0xd4ad0 bytes. Smallest app partition is 0xf00000 bytes. 0xe2b530 bytes (94%) free.
+[10/11] cd /home/yeechan/esp-idf-v5.5.3/components/esptool_py && /usr/bin/cmake -D IDF_PATH=/home/yeechan/esp-idf-v5.5.3 -D "SERIAL_TOOL=/home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python;;/home/yeechan/esp-idf-v5.5.3/components/esptool_py/esptool/esptool.py;--chip;esp32p4" -D "SERIAL_TOOL_ARGS=--before=default_reset;--after=hard_reset;write_flash;@flash_args" -D WORKING_DIRECTORY=/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/09_video_lcd_display/build -P /home/yeechan/esp-idf-v5.5.3/components/esptool_py/run_serial_tool.cmake
+esptool.py --chip esp32p4 -p /dev/ttyACM0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 16MB 0x2000 bootloader/bootloader.bin 0x40000 video_lcd_display.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.12.dev1
+Serial port /dev/ttyACM0
+Connecting....
+Chip is ESP32-P4 (revision v1.3)
+Features: High-Performance MCU
+Crystal is 40MHz
+MAC: 80:f1:b2:d1:c3:f8
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Flash will be erased from 0x00002000 to 0x00007fff...
+Flash will be erased from 0x00040000 to 0x00114fff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 24016 bytes to 14862...
+Writing at 0x00002000... (100 %)
+Wrote 24016 bytes (14862 compressed) at 0x00002000 in 0.7 seconds (effective 283.4 kbit/s)...
+Hash of data verified.
+Compressed 871120 bytes to 514016...
+Writing at 0x00040000... (3 %)
+Writing at 0x0004e7aa... (6 %)
+Writing at 0x0005a7fe... (9 %)
+Writing at 0x000624ee... (12 %)
+Writing at 0x00068733... (15 %)
+Writing at 0x0006e79e... (18 %)
+Writing at 0x0007432c... (21 %)
+Writing at 0x0007aab6... (25 %)
+Writing at 0x000820a0... (28 %)
+Writing at 0x00089642... (31 %)
+Writing at 0x00091070... (34 %)
+Writing at 0x00097286... (37 %)
+Writing at 0x0009d75d... (40 %)
+Writing at 0x000a2e31... (43 %)
+Writing at 0x000a81ae... (46 %)
+Writing at 0x000ad3a5... (50 %)
+Writing at 0x000b2c4c... (53 %)
+Writing at 0x000b9ad3... (56 %)
+Writing at 0x000bf04d... (59 %)
+Writing at 0x000c4691... (62 %)
+Writing at 0x000ca17b... (65 %)
+Writing at 0x000cfa8f... (68 %)
+Writing at 0x000d6ff2... (71 %)
+Writing at 0x000dd5ce... (75 %)
+Writing at 0x000e335e... (78 %)
+Writing at 0x000eafe3... (81 %)
+Writing at 0x000f1b79... (84 %)
+Writing at 0x000f7d05... (87 %)
+Writing at 0x000fdc50... (90 %)
+Writing at 0x00103881... (93 %)
+Writing at 0x00109bd8... (96 %)
+Writing at 0x00110158... (100 %)
+Wrote 871120 bytes (514016 compressed) at 0x00040000 in 13.0 seconds (effective 537.5 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 105...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (105 compressed) at 0x00008000 in 0.1 seconds (effective 470.1 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...

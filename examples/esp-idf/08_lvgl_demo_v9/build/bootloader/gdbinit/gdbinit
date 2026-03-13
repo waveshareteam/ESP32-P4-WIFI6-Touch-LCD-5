@@ -1,0 +1,2 @@
+source /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/08_lvgl_demo_v9/build/bootloader/gdbinit/symbols
+source /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/08_lvgl_demo_v9/build/bootloader/gdbinit/connect

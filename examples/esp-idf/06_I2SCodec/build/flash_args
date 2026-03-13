@@ -1,0 +1,4 @@
+--flash_mode dio --flash_freq 80m --flash_size 16MB
+0x2000 bootloader/bootloader.bin
+0x10000 i2s-es8311-example.bin
+0x8000 partition_table/partition-table.bin

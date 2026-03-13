@@ -1,0 +1,55 @@
+Command: ninja flash
+[1/5] cd /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools/build/esp-idf/esptool_py && /home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/yeechan/esp-idf-v5.5.3/components/partition_table/check_sizes.py --offset 0x8000 partition --type app /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools/build/partition_table/partition-table.bin /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools/build/i2c_tools.bin
+i2c_tools.bin binary size 0x5af40 bytes. Smallest app partition is 0x100000 bytes. 0xa50c0 bytes (64%) free.
+[2/5] Performing build step for 'bootloader'
+[1/1] cd /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools/build/bootloader/esp-idf/esptool_py && /home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python /home/yeechan/esp-idf-v5.5.3/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x2000 /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools/build/bootloader/bootloader.bin
+Bootloader binary size 0x5300 bytes. 0xd00 bytes (14%) free.
+[3/5] No install step for 'bootloader'
+[4/5] Completed 'bootloader'
+[4/5] cd /home/yeechan/esp-idf-v5.5.3/components/esptool_py && /usr/bin/cmake -D IDF_PATH=/home/yeechan/esp-idf-v5.5.3 -D "SERIAL_TOOL=/home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python;;/home/yeechan/esp-idf-v5.5.3/components/esptool_py/esptool/esptool.py;--chip;esp32p4" -D "SERIAL_TOOL_ARGS=--before=default_reset;--after=hard_reset;write_flash;@flash_args" -D WORKING_DIRECTORY=/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools/build -P /home/yeechan/esp-idf-v5.5.3/components/esptool_py/run_serial_tool.cmake
+esptool.py --chip esp32p4 -p /dev/ttyACM0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x2000 bootloader/bootloader.bin 0x10000 i2c_tools.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.12.dev1
+Serial port /dev/ttyACM0
+Connecting....
+Chip is ESP32-P4 (revision v1.3)
+Features: High-Performance MCU
+Crystal is 40MHz
+MAC: 80:f1:b2:d1:c3:f8
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Flash will be erased from 0x00002000 to 0x00007fff...
+Flash will be erased from 0x00010000 to 0x0006afff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 21248 bytes to 13544...
+Writing at 0x00002000... (100 %)
+Wrote 21248 bytes (13544 compressed) at 0x00002000 in 0.6 seconds (effective 294.5 kbit/s)...
+Hash of data verified.
+Compressed 372544 bytes to 216903...
+Writing at 0x00010000... (7 %)
+Writing at 0x0001b939... (14 %)
+Writing at 0x000228e9... (21 %)
+Writing at 0x00028aa3... (28 %)
+Writing at 0x0002f77c... (35 %)
+Writing at 0x000355bd... (42 %)
+Writing at 0x0003bf62... (50 %)
+Writing at 0x00042102... (57 %)
+Writing at 0x0004819b... (64 %)
+Writing at 0x0004ec90... (71 %)
+Writing at 0x00054fe9... (78 %)
+Writing at 0x0005afc3... (85 %)
+Writing at 0x000615b7... (92 %)
+Writing at 0x00068679... (100 %)
+Wrote 372544 bytes (216903 compressed) at 0x00010000 in 5.4 seconds (effective 548.4 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 120...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (120 compressed) at 0x00008000 in 0.0 seconds (effective 539.9 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...

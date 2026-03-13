@@ -1,0 +1,6 @@
+source "/home/yeechan/esp-idf-v5.5.3/components/bootloader/Kconfig.projbuild"
+source "/home/yeechan/esp-idf-v5.5.3/components/esp_app_format/Kconfig.projbuild"
+source "/home/yeechan/esp-idf-v5.5.3/components/esp_rom/Kconfig.projbuild"
+source "/home/yeechan/esp-idf-v5.5.3/components/esptool_py/Kconfig.projbuild"
+source "/home/yeechan/esp-idf-v5.5.3/components/partition_table/Kconfig.projbuild"
+source "/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/03_i2c_tools/main/Kconfig.projbuild"

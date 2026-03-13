@@ -1,0 +1,5 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/home/yeechan/.espressif/python_env/idf5.5_py3.12_env/bin/python -DESP_PLATFORM=1 -DIDF_TARGET=esp32p4 -DCCACHE_ENABLE=0 /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/08_lvgl_demo_v9
+info: INFO: Symbol BSP_I2S_NUM defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
+    /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/08_lvgl_demo_v9/components/esp32_p4_wifi6_touch_lcd_5/Kconfig:30
+    /home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/08_lvgl_demo_v9/components/bsp_extra/Kconfig:2
+info: Choice ESPTOOLPY_FLASHSIZE has multiple active selections. The last one will be used: ESPTOOLPY_FLASHSIZE_32MB .

@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/CMakeFiles/bootloader
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/CMakeFiles/bootloader.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/CMakeFiles/bootloader-complete.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/yeechan/sourcecode/esp32-p4/external/esp32-p4-wifi6-touch-lcd-5/examples/esp-idf/06_I2SCodec/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
