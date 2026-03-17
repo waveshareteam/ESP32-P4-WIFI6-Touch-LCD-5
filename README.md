@@ -1,6 +1,6 @@
-# Waveshare ESP32-P4-WIFI6-Touch-LCD-4.3 Product Engineering Sample Program
+# Waveshare ESP32-P4-WIFI6-Touch-LCD-5 Product Engineering Sample Program
 
-This product is a dual-core plus single-core RISC-V high-performance development board based on ESP32-P4 chip. It is equipped with a 4.3-inch 480 × 800 resolution IPS touch display. Support rich human-computer interaction interface
+ESP32-P4-WIFI6 5inch Development Board, 720 × 1280 Resolution, 5-Point Touch, Onboard audio codec chip, Supports Wi-Fi 6 And BLE 5, Optional For OV5647 Camera
 
 ---
 
