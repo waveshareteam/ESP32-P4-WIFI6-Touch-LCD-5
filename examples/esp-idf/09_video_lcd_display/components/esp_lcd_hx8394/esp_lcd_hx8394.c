@@ -2,6 +2,7 @@
 
 #if SOC_MIPI_DSI_SUPPORTED
 #include "esp_check.h"
+#include "esp_idf_version.h"
 #include "esp_log.h"
 #include "esp_lcd_panel_commands.h"
 #include "esp_lcd_panel_interface.h"
@@ -69,7 +70,11 @@ esp_err_t esp_lcd_new_panel_hx8394(const esp_lcd_panel_io_handle_t io, const esp
         ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "configure GPIO for RST line failed");
     }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+    switch (panel_dev_config->rgb_ele_order)
+#else
     switch (panel_dev_config->color_space)
+#endif
     {
     case LCD_RGB_ELEMENT_ORDER_RGB:
         hx8394->madctl_val = 0;

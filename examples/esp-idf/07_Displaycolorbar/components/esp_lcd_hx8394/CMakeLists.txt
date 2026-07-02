@@ -1,6 +1,6 @@
 idf_component_register(SRCS "esp_lcd_hx8394.c"
                        INCLUDE_DIRS "include"
-                       REQUIRES "esp_lcd"
+                       REQUIRES "esp_lcd" esp_driver_gpio
                        PRIV_REQUIRES "esp_driver_gpio")
 
 include(package_manager)

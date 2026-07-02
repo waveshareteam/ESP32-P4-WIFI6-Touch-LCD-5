@@ -1,6 +1,7 @@
 #pragma once
 #include "esp_lcd_types.h"
 #include "esp_lcd_mipi_dsi.h"
+#include "esp_idf_version.h"
 #include "sdkconfig.h"
 
 /* LCD color formats */
@@ -18,7 +19,11 @@
 /* LCD display color bits */
 #define BSP_LCD_BITS_PER_PIXEL      (16)
 /* LCD display color space */
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+#define BSP_LCD_COLOR_SPACE         (LCD_RGB_ELEMENT_ORDER_RGB)
+#else
 #define BSP_LCD_COLOR_SPACE         (ESP_LCD_COLOR_SPACE_RGB)
+#endif
 
 #define BSP_LCD_H_RES              (720)
 #define BSP_LCD_V_RES              (1280)

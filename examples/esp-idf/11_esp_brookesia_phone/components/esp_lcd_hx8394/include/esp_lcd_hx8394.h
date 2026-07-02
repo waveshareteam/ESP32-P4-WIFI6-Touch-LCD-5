@@ -6,6 +6,21 @@
 #if SOC_MIPI_DSI_SUPPORTED
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_mipi_dsi.h"
+#include "esp_idf_version.h"
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+#define HX8394_DPI_COLOR_FIELD in_color_format
+#define HX8394_DPI_DMA2D_FIELD
+#ifndef LCD_COLOR_PIXEL_FORMAT_RGB888
+#define LCD_COLOR_PIXEL_FORMAT_RGB888 LCD_COLOR_FMT_RGB888
+#endif
+#ifndef LCD_COLOR_PIXEL_FORMAT_RGB565
+#define LCD_COLOR_PIXEL_FORMAT_RGB565 LCD_COLOR_FMT_RGB565
+#endif
+#else
+#define HX8394_DPI_COLOR_FIELD pixel_format
+#define HX8394_DPI_DMA2D_FIELD .flags.use_dma2d = true,
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -92,7 +107,7 @@ esp_err_t esp_lcd_new_panel_hx8394(const esp_lcd_panel_io_handle_t io, const esp
         .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,             \
         .dpi_clock_freq_mhz = 58,                                \
         .virtual_channel = 0,                                    \
-        .pixel_format = px_format,                               \
+        .HX8394_DPI_COLOR_FIELD = px_format,                               \
         .num_fbs = 1,                                            \
         .video_timing = {                                        \
             .h_size = 720,                                      \
@@ -104,7 +119,7 @@ esp_err_t esp_lcd_new_panel_hx8394(const esp_lcd_panel_io_handle_t io, const esp
             .vsync_pulse_width = 4,                              \
             .vsync_front_porch = 24,                             \
         },                                                       \
-        .flags.use_dma2d = true,                                 \
+        HX8394_DPI_DMA2D_FIELD                                  \
     }
 #endif
 

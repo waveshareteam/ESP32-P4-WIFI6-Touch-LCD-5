@@ -26,3 +26,11 @@ target_sources(${tusb_lib} PUBLIC "${PROJECT_DIR}/main/tusb/usb_descriptors.c")
 
 cmake_policy(SET CMP0079 NEW)
 target_link_libraries(${tusb_lib} PRIVATE ${COMPONENT_LIB})
+
+idf_build_get_property(build_components BUILD_COMPONENTS)
+if("lvgl__lvgl" IN_LIST build_components)
+    idf_component_get_property(LVGL_LIB lvgl__lvgl COMPONENT_LIB)
+    if(TARGET ${LVGL_LIB})
+        target_compile_options(${LVGL_LIB} PRIVATE -Wno-error=attributes -Wno-error=cpp)
+    endif()
+endif()
