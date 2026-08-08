@@ -31,7 +31,11 @@ endmenu
 
 BROOKESIA_MANIFEST = """dependencies:
   espressif/esp-boost:
-    version: "0.3.*"
+    matches:
+      - if: "idf_version >= 6.0"
+        version: "0.6.0"
+      - if: "idf_version < 6.0"
+        version: "0.3.*"
     public: true
 """
 
@@ -49,6 +53,13 @@ WIFI_MANIFEST = """dependencies:
         version: ">=2.12,<3.0"
       - if: "idf_version < 6.0"
         version: "1.4.*"
+"""
+
+MP4_AUDIO_MANIFEST = """dependencies:
+  # v2.6.0 requires ESP32-P4 revision >= 3.
+  espressif/esp_audio_codec:
+    version: "2.5.0"
+    public: true
 """
 
 HX_SOURCE = """#include "esp_idf_version.h"
@@ -76,8 +87,17 @@ class ContractRepository:
             BROOKESIA_MANIFEST,
         )
         self.write(
+            "examples/esp-idf/11_esp_brookesia_phone/components/"
+            "brookesia_core/systems/speaker/idf_component.yml",
+            BROOKESIA_MANIFEST,
+        )
+        self.write(
             "examples/esp-idf/04_wifistation/main/idf_component.yml",
             WIFI_MANIFEST,
+        )
+        self.write(
+            "examples/esp-idf/10_mp4_player/main/idf_component.yml",
+            MP4_AUDIO_MANIFEST,
         )
         for name in ("07_a", "08_b", "09_c", "10_d", "11_e", "12_f"):
             root = f"examples/esp-idf/{name}/components/esp_lcd_hx8394"
@@ -128,6 +148,14 @@ class ComponentContractTests(unittest.TestCase):
         )
         self.assertIn("BROOKESIA_BOOST_RANGE", self.repo.codes())
 
+    def test_missing_idf6_boost_bridge_is_rejected(self) -> None:
+        self.repo.write(
+            "examples/esp-idf/11_esp_brookesia_phone/components/"
+            "brookesia_core/systems/speaker/idf_component.yml",
+            BROOKESIA_MANIFEST.replace('"0.6.0"', '"0.3.*"'),
+        )
+        self.assertIn("BROOKESIA_BOOST_RANGE", self.repo.codes())
+
     def test_copy_drift_is_rejected(self) -> None:
         self.repo.write(
             "examples/esp-idf/12_f/components/esp_lcd_hx8394/"
@@ -155,6 +183,13 @@ class ComponentContractTests(unittest.TestCase):
                 changed,
             )
         self.assertIn("HX8394_UNSCOPED_I2C_SIDE_EFFECT", self.repo.codes())
+
+    def test_floating_mp4_audio_codec_is_rejected(self) -> None:
+        self.repo.write(
+            "examples/esp-idf/10_mp4_player/main/idf_component.yml",
+            MP4_AUDIO_MANIFEST.replace('"2.5.0"', '"^2.3.0"'),
+        )
+        self.assertIn("MP4_AUDIO_CODEC_VERSION", self.repo.codes())
 
 
 if __name__ == "__main__":

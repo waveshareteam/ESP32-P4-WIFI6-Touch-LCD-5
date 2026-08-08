@@ -14,7 +14,9 @@ from pathlib import Path
 BROOKESIA_ROOT = Path(
     "examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core"
 )
+BROOKESIA_SPEAKER_MANIFEST = BROOKESIA_ROOT / "systems/speaker/idf_component.yml"
 WIFI_MANIFEST = Path("examples/esp-idf/04_wifistation/main/idf_component.yml")
+MP4_AUDIO_MANIFEST = Path("examples/esp-idf/10_mp4_player/main/idf_component.yml")
 HX8394_GLOB = "examples/esp-idf/*/components/esp_lcd_hx8394"
 HX8394_SHARED_FILES = (
     "esp_lcd_hx8394.c",
@@ -86,20 +88,28 @@ def check_brookesia(repo: Path) -> list[Finding]:
             )
         )
 
-    boost = re.search(
-        r"(?ms)^  espressif/esp-boost:\s*$"
-        r"(.*?)(?=^  [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+:\s*$|"
-        r"^  #[^\n]*$|\Z)",
-        manifest,
+    boost_contract = (
+        'if: "idf_version >= 6.0"',
+        'version: "0.6.0"',
+        'if: "idf_version < 6.0"',
+        'version: "0.3.*"',
     )
-    if not boost or 'version: "0.3.*"' not in boost.group(1):
-        findings.append(
-            Finding(
-                manifest_path.as_posix(),
-                "BROOKESIA_BOOST_RANGE",
-                "the vendored release/v0.6 source requires esp-boost 0.3.*",
-            )
+    for boost_manifest_path in (manifest_path, BROOKESIA_SPEAKER_MANIFEST):
+        boost_manifest = read(repo, boost_manifest_path)
+        boost = re.search(
+            r"(?ms)^  espressif/esp-boost:\s*$"
+            r"(.*?)(?=^  [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+:\s*$|"
+            r"^  #[^\n]*$|\Z)",
+            boost_manifest,
         )
+        if not boost or any(marker not in boost.group(1) for marker in boost_contract):
+            findings.append(
+                Finding(
+                    boost_manifest_path.as_posix(),
+                    "BROOKESIA_BOOST_RANGE",
+                    "require esp-boost 0.3.* on IDF 5 and exact 0.6.0 on IDF 6",
+                )
+            )
 
     omitted_ai_dependencies = (
         "esp_coze",
@@ -256,6 +266,24 @@ def check_hosted_wifi(repo: Path) -> list[Finding]:
     return findings
 
 
+def check_mp4_audio_codec(repo: Path) -> list[Finding]:
+    manifest = read(repo, MP4_AUDIO_MANIFEST)
+    dependency = re.search(
+        r"(?ms)^  espressif/esp_audio_codec:\s*$"
+        r"(.*?)(?=^  [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+:\s*$|\Z)",
+        manifest,
+    )
+    if not dependency or 'version: "2.5.0"' not in dependency.group(1):
+        return [
+            Finding(
+                MP4_AUDIO_MANIFEST.as_posix(),
+                "MP4_AUDIO_CODEC_VERSION",
+                "ESP32-P4 revision 1/2 compatibility requires esp_audio_codec 2.5.0",
+            )
+        ]
+    return []
+
+
 def run(repo: Path) -> list[Finding]:
     repo = repo.resolve()
     return sorted(
@@ -263,6 +291,7 @@ def run(repo: Path) -> list[Finding]:
             *check_brookesia(repo),
             *check_hx8394(repo),
             *check_hosted_wifi(repo),
+            *check_mp4_audio_codec(repo),
         }
     )
 

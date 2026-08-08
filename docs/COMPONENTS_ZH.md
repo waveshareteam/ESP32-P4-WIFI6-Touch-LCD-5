@@ -33,13 +33,22 @@
 
 ## Brookesia 依赖约定
 
-仓库中的 Brookesia core 标识为 release/v0.6 集成。esp-boost 被约束到 0.3.*，因为
-本地源码使用该 API 版本线。LVGL 保持固定为 9.5.0，因为仓库的 ESP-IDF 6 兼容调整基于
-该版本。
+仓库中的 Brookesia core 标识为 release/v0.6 集成。ESP-IDF 5 使用 esp-boost 0.3.*，
+与本地源码采用的 API 版本线一致；ESP-IDF 6 精确使用 0.6.0，这是首个支持 IDF 6 的
+esp-boost 版本，也是本仓库矩阵已经证明的兼容桥。这是产品仓库自身的证据，并不表示上游
+Brookesia release/v0.6 官方支持 IDF 6。LVGL 保持固定为 9.5.0，因为仓库的 ESP-IDF 6
+兼容调整基于该版本。
 
 旧版 AI framework 被有意隐藏并关闭。release/v0.6 的 AI 依赖栈未包含在本产品集成中，
 继续暴露该选项会产生无法解析的配置。重新启用它必须进行明确的 Brookesia 架构升级，并
 通过完整 IDF 矩阵；这不是只改 menuconfig 即可完成的工作。
+
+## MP4 音频编解码器边界
+
+MP4 示例将 `espressif/esp_audio_codec` 精确固定在 2.5.0。2.6.0 及后续版本要求
+ESP32-P4 revision 3 或更新芯片，而本仓库有意保留 revision 1/2 支持。2.5.0 是引入该
+硬件限制前的最后一个版本，并明确支持 ESP-IDF 6 构建。修改这一版本约束前，必须取得
+硬件 revision 证据并通过完整 ESP-IDF 矩阵。
 
 ## 审查规则
 

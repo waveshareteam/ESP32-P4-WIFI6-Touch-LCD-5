@@ -40,15 +40,27 @@ files.
 ## Brookesia dependency contract
 
 The checked-in Brookesia core identifies itself as release/v0.6 integration.
-Its esp-boost dependency is constrained to 0.3.* because that is the API line
-used by the vendored source. LVGL remains fixed at 9.5.0 because the repository's
-ESP-IDF 6 compatibility changes target that version.
+Its esp-boost dependency uses 0.3.* on ESP-IDF 5, matching the API line used by
+the vendored source. ESP-IDF 6 uses exact version 0.6.0: that is the first
+esp-boost release with IDF 6 support and the compatibility bridge proven by this
+repository's matrix. This bridge is product-local evidence, not a claim that
+upstream Brookesia release/v0.6 officially supports IDF 6. LVGL remains fixed at
+9.5.0 because the repository's ESP-IDF 6 compatibility changes target that
+version.
 
 The legacy AI framework is intentionally hidden and disabled. Its release/v0.6
 dependency stack is not included in this product integration, so exposing the
 option would create a configuration that cannot resolve. Re-enabling it requires
 an explicit Brookesia architecture upgrade and a successful complete IDF
 matrix; it is not a menuconfig-only change.
+
+## MP4 audio codec boundary
+
+The MP4 example fixes `espressif/esp_audio_codec` at 2.5.0. Version 2.6.0 and
+later require ESP32-P4 revision 3 or newer, while this repository deliberately
+retains revision 1/2 support. Version 2.5.0 is the last release before that
+hardware gate and explicitly supports ESP-IDF 6 builds. Changing the pin
+requires hardware-revision evidence and a successful complete IDF matrix.
 
 ## Review rules
 
