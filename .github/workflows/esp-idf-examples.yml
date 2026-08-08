@@ -2,102 +2,168 @@ name: ESP-IDF examples
 
 on:
   pull_request:
-    paths:
-      - "examples/**"
-      - "firmware/**"
-      - "Firmware/**"
-      - "FirmWare/**"
-      - "config/**"
-      - ".github/workflows/esp-idf-examples.yml"
-      - ".github/scripts/discover_esp_idf_examples.py"
   push:
     branches:
       - main
-    paths:
-      - "examples/**"
-      - "firmware/**"
-      - "Firmware/**"
-      - "FirmWare/**"
-      - "config/**"
-      - ".github/workflows/esp-idf-examples.yml"
-      - ".github/scripts/discover_esp_idf_examples.py"
   workflow_dispatch:
     inputs:
       project:
-        description: "ESP-IDF example or firmware project directory name, path, or all"
+        description: "First-party ESP-IDF example: all, directory name, or path"
         required: false
         default: "all"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
-  discover:
-    name: Discover examples
+  validate:
+    name: Repository policy
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.examples.outputs.matrix }}
-      has_examples: ${{ steps.examples.outputs.has_examples }}
-      examples: ${{ steps.examples.outputs.examples }}
+      matrix: ${{ steps.scope.outputs.matrix }}
+      has_examples: ${{ steps.scope.outputs.has_examples }}
+      examples: ${{ steps.scope.outputs.examples }}
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+      firmware_changed: ${{ steps.scope.outputs.firmware_changed }}
+      release_review: ${{ steps.scope.outputs.release_review }}
+      unknown_paths: ${{ steps.scope.outputs.unknown_paths }}
+      head_sha: ${{ steps.scope.outputs.head_sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout the exact event head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ env.CI_HEAD_SHA }}
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Discover changed ESP-IDF examples
-        id: examples
+      - name: Verify checkout identity
         shell: bash
         run: |
           set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CI_HEAD_SHA"
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            python .github/scripts/discover_esp_idf_examples.py \
-              --example "${{ inputs.project }}"
-          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            python .github/scripts/discover_esp_idf_examples.py \
-              --base-ref "${{ github.event.pull_request.base.sha }}" \
-              --head-ref "${{ github.sha }}" \
-              --fallback-all
+      - name: Test repository policy helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/test_discover_esp_idf_examples.py
+          python .github/scripts/test_repository_policy.py
+          python .github/scripts/test_component_contracts.py
+
+      - name: Check first-party Markdown policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/check_repository_policy.py
+          python .github/scripts/check_component_contracts.py
+
+      - name: Classify changed files and discover examples
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_PROJECT: ${{ inputs.project }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            python .github/scripts/discover_esp_idf_examples.py --example "$REQUESTED_PROJECT" --head-ref "$CI_HEAD_SHA"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            python .github/scripts/discover_esp_idf_examples.py --base-ref "$PR_BASE_SHA" --head-ref "$CI_HEAD_SHA"
           else
-            before="${{ github.event.before }}"
+            before="$BEFORE_SHA"
             if [[ "$before" == "0000000000000000000000000000000000000000" ]]; then
               before=""
             fi
-            python .github/scripts/discover_esp_idf_examples.py \
-              --base-ref "$before" \
-              --head-ref "${{ github.sha }}" \
-              --fallback-all
+            if [[ -n "$before" ]]; then
+              python .github/scripts/discover_esp_idf_examples.py --base-ref "$before" --head-ref "$CI_HEAD_SHA"
+            else
+              python .github/scripts/discover_esp_idf_examples.py --head-ref "$CI_HEAD_SHA"
+            fi
           fi
 
-      - name: Summary
+      - name: Scope summary
         shell: bash
+        env:
+          VALIDATED_HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
+          DOCS_ONLY: ${{ steps.scope.outputs.docs_only }}
+          FIRMWARE_CHANGED: ${{ steps.scope.outputs.firmware_changed }}
+          RELEASE_REVIEW: ${{ steps.scope.outputs.release_review }}
+          UNKNOWN_PATHS: ${{ steps.scope.outputs.unknown_paths }}
+          HAS_EXAMPLES: ${{ steps.scope.outputs.has_examples }}
+          SELECTED_EXAMPLES: ${{ steps.scope.outputs.examples }}
         run: |
-          if [[ "${{ steps.examples.outputs.has_examples }}" == "true" ]]; then
-            {
-              echo "### ESP-IDF examples selected"
+          {
+            echo "### Repository validation scope"
+            echo
+            echo "- Head SHA: $VALIDATED_HEAD_SHA"
+            echo "- Documentation only: $DOCS_ONLY"
+            echo "- Firmware surface changed: $FIRMWARE_CHANGED"
+            echo "- Immutable artifact review required: $RELEASE_REVIEW"
+            echo "- Unclassified paths: $UNKNOWN_PATHS"
+            echo
+            if [[ "$HAS_EXAMPLES" == "true" ]]; then
+              echo "#### Selected first-party examples"
               echo
-              echo '${{ steps.examples.outputs.examples }}' | tr ',' '\n' | sed '/^$/d' | sed 's/^/- /'
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "No ESP-IDF example changes detected." >> "$GITHUB_STEP_SUMMARY"
-          fi
+              printf '%s\n' "$SELECTED_EXAMPLES" | tr ',' '\n' | sed '/^$/d' | sed 's/^/- /'
+            else
+              echo "No first-party example build is required for this complete diff."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build:
     name: Build ${{ matrix.example }} (${{ matrix.idf_version }})
-    needs: discover
-    if: needs.discover.outputs.has_examples == 'true'
+    needs: validate
+    if: needs.validate.outputs.has_examples == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.validate.outputs.matrix) }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout validated head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.validate.outputs.head_sha }}
+          persist-credentials: false
 
       - name: Build with ESP-IDF
-        uses: espressif/esp-idf-ci-action@v1
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
         with:
           esp_idf_version: ${{ matrix.idf_version }}
           target: esp32p4
           path: ${{ matrix.example }}
+
+  result:
+    name: ESP-IDF examples
+    if: ${{ always() }}
+    needs:
+      - validate
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the selected validation
+        shell: bash
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          HAS_EXAMPLES: ${{ needs.validate.outputs.has_examples }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          VALIDATED_HEAD_SHA: ${{ needs.validate.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$VALIDATE_RESULT" != "success" ]]; then
+            echo "Repository policy validation did not pass." >&2
+            exit 1
+          fi
+          if [[ "$HAS_EXAMPLES" == "true" && "$BUILD_RESULT" != "success" ]]; then
+            echo "One or more required ESP-IDF matrix builds did not pass." >&2
+            exit 1
+          fi
+          echo "Required validation passed for $VALIDATED_HEAD_SHA."

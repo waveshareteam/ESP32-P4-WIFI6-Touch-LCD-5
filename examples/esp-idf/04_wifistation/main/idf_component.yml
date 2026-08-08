@@ -1,5 +1,9 @@
 ## IDF Component Manager Manifest File
 dependencies:
+  # The host ranges are split because the checked-in product repository does
+  # not rebuild the ESP32-C6 slave image. The two ranges are compile-validated
+  # with their matching ESP-IDF lines; revisit them only with matching slave
+  # firmware and hardware interoperability evidence.
   espressif/esp_wifi_remote:
     matches:
       - if: "idf_version >= 6.0"

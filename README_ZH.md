@@ -62,7 +62,8 @@
 
 > [!NOTE]
 > 无线示例使用板载 ESP32-C6 协处理器。更新任一侧时，请保持 ESP32-P4 主机组件
-> 与 ESP32-C6 从机固件兼容。
+> 与 ESP32-C6 从机固件兼容。请参阅
+> [主机/从机兼容性约定](docs/P4_C6_HOSTED_WIFI_ZH.md)。
 
 ## 🧪 ESP-IDF 示例
 
@@ -85,12 +86,16 @@
 
 | 开发框架 | 版本 | 矩阵构建数 |
 | --- | --- | ---: |
-| ESP-IDF | `v5.5.4` | 12 |
+| ESP-IDF | `v5.5.5` | 12 |
 | ESP-IDF | `v6.0.2` | 12 |
 
 [ESP-IDF 示例工作流](https://github.com/waveshareteam/ESP32-P4-WIFI6-Touch-LCD-5/actions/workflows/esp-idf-examples.yml)
-会自动发现第一方工程，完整矩阵目标为 24 个构建任务。CI 仅验证编译兼容性；
-硬件行为仍需结合开发板、原理图和产品文档进行验证。
+会始终运行轻量仓库策略任务，再根据完整 diff 只选择受影响的第一方工程。共享构建输入
+会选择完整 24 项矩阵，纯文档或仅固件变更不会消耗产品构建资源；最终汇总状态在所有
+情况下均可见。详情请参阅 [CI 发现与路由](docs/CI_ZH.md)。
+
+CI 只验证精确 Pull Request head SHA 的编译兼容性；硬件行为仍需结合开发板、原理图和
+产品文档进行验证。
 
 ## 🗂️ 仓库结构
 
@@ -98,9 +103,12 @@
 | --- | --- |
 | [`.github/`](.github/) | ESP-IDF 工程发现脚本和 GitHub Actions 工作流 |
 | [`assets/`](assets/) | 文档使用的产品图片 |
+| [`docs/`](docs/) | CI、组件、硬件和 Hosted Wi-Fi 维护约定 |
 | [`examples/esp-idf/`](examples/esp-idf/) | 第一方 ESP-IDF 工程 |
 | [`firmware/`](firmware/) | 出厂烧录固件 |
 | [`schematic/`](schematic/) | 产品原理图 |
+| [`CONTRIBUTING_ZH.md`](CONTRIBUTING_ZH.md) | 贡献与验证流程 |
+| [`SUPPORT_ZH.md`](SUPPORT_ZH.md) | 支持范围与公开日志隐私说明 |
 | [`LICENSE.txt`](LICENSE.txt) | Apache License 2.0 许可证 |
 
 ## 📦 出厂固件
@@ -116,13 +124,21 @@
 - [产品文档](https://docs.waveshare.net/ESP32-P4-WIFI6-Touch-LCD-5/)
 - [产品原理图](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
 - [ESP-IDF 示例](examples/esp-idf/)
+- [仓库文档](docs/README_ZH.md)
+- [CI 发现与路由](docs/CI_ZH.md)
+- [组件策略](docs/COMPONENTS_ZH.md)
+- [基于原理图的硬件核验](docs/HARDWARE_ZH.md)
+- [P4/C6 Hosted Wi-Fi 兼容性](docs/P4_C6_HOSTED_WIFI_ZH.md)
 
 ## 🤝 支持与贡献
 
 欢迎提交贡献和可复现的问题报告。请提供开发板和硬件版本、示例路径、ESP-IDF 版本、
-复现步骤、预期与实际行为，以及相关的构建日志或串口日志。
+复现步骤、预期与实际行为，以及相关的构建日志或串口日志。公开日志前请删除凭据、
+网络密钥、个人数据、真实设备标识和机器专用路径。
 
 - [提交 Issue](https://github.com/waveshareteam/ESP32-P4-WIFI6-Touch-LCD-5/issues/new)
+- [贡献指南](CONTRIBUTING_ZH.md)
+- [支持指南](SUPPORT_ZH.md)
 - [官方技术支持](https://docs.waveshare.net/ESP32-P4-WIFI6-Touch-LCD-5/Technical-Support)
 
 ## 📄 许可证

@@ -12,3 +12,5 @@
 **/dependencies.lock
 **/sdkconfig
 **/sdkconfig.old
+**/__pycache__/
+**/*.py[cod]

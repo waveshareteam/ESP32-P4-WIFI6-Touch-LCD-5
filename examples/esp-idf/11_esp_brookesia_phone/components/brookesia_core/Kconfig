@@ -1,11 +1,10 @@
 menu "ESP Brookesia - Core Configurations"
-    menuconfig ESP_BROOKESIA_ENABLE_AI_FRAMEWORK
-        bool "AI Framework"
-        default y
-
-    if ESP_BROOKESIA_ENABLE_AI_FRAMEWORK
-        rsource "ai_framework/Kconfig"
-    endif
+    # This product integration intentionally omits the legacy release/v0.6 AI
+    # dependency stack. Keep the symbol for source compatibility, but do not
+    # expose a menu option that cannot be resolved by this repository.
+    config ESP_BROOKESIA_ENABLE_AI_FRAMEWORK
+        bool
+        default n
 
     menuconfig ESP_BROOKESIA_ENABLE_GUI
         bool "GUI"

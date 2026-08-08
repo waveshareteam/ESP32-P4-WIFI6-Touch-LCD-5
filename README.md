@@ -65,6 +65,7 @@ firmware flashing instructions.
 > [!NOTE]
 > Wireless examples use the onboard ESP32-C6 coprocessor. Keep the ESP32-P4 host
 > components and ESP32-C6 slave firmware compatible when changing either side.
+> See the [host/slave compatibility contract](docs/P4_C6_HOSTED_WIFI.md).
 
 ## 🧪 ESP-IDF Examples
 
@@ -87,13 +88,19 @@ firmware flashing instructions.
 
 | Surface | Version | Matrix builds |
 | --- | --- | ---: |
-| ESP-IDF | `v5.5.4` | 12 |
+| ESP-IDF | `v5.5.5` | 12 |
 | ESP-IDF | `v6.0.2` | 12 |
 
 The [ESP-IDF examples workflow](https://github.com/waveshareteam/ESP32-P4-WIFI6-Touch-LCD-5/actions/workflows/esp-idf-examples.yml)
-discovers the first-party projects and targets 24 build jobs for the full matrix.
-CI verifies compile compatibility; hardware behavior still requires validation on the
-board against the schematic and product documentation.
+runs an always-visible lightweight repository-policy job, then selects only the
+first-party projects affected by the complete diff. Shared build inputs select
+the full 24-job matrix, while documentation-only and firmware-only changes do
+not spend product-build capacity. The final aggregate status remains visible in
+every case. See [CI discovery and routing](docs/CI.md).
+
+CI verifies compile compatibility for the exact pull-request head SHA; hardware
+behavior still requires validation on the board against the schematic and
+product documentation.
 
 ## 🗂️ Repository Layout
 
@@ -101,9 +108,12 @@ board against the schematic and product documentation.
 | --- | --- |
 | [`.github/`](.github/) | ESP-IDF project discovery and GitHub Actions workflow |
 | [`assets/`](assets/) | Product images used by the documentation |
+| [`docs/`](docs/) | CI, component, hardware, and hosted-Wi-Fi maintenance contracts |
 | [`examples/esp-idf/`](examples/esp-idf/) | First-party ESP-IDF projects |
 | [`firmware/`](firmware/) | Factory flashing firmware |
 | [`schematic/`](schematic/) | Product schematic |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution and validation workflow |
+| [`SUPPORT.md`](SUPPORT.md) | Support scope and public-log privacy guidance |
 | [`LICENSE.txt`](LICENSE.txt) | Apache License 2.0 |
 
 ## 📦 Factory Firmware
@@ -121,14 +131,23 @@ before using it.
 - [Product Documentation](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5)
 - [Product Schematic](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
 - [ESP-IDF Examples](examples/esp-idf/)
+- [Repository Documentation](docs/README.md)
+- [CI Discovery and Routing](docs/CI.md)
+- [Component Policy](docs/COMPONENTS.md)
+- [Schematic-backed Hardware Validation](docs/HARDWARE.md)
+- [P4/C6 Hosted Wi-Fi Compatibility](docs/P4_C6_HOSTED_WIFI.md)
 
 ## 🤝 Support and Contributions
 
 Contributions and reproducible issue reports are welcome. Include the board and
 hardware revision, example path, ESP-IDF version, reproduction steps, expected and
-actual behavior, and relevant build or serial logs.
+actual behavior, and relevant build or serial logs. Remove credentials, network
+secrets, personal data, actual device identifiers, and machine-specific paths
+before posting logs publicly.
 
 - [Open an Issue](https://github.com/waveshareteam/ESP32-P4-WIFI6-Touch-LCD-5/issues/new)
+- [Contribution Guide](CONTRIBUTING.md)
+- [Support Guide](SUPPORT.md)
 - [Official Support](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5/Technical-Support)
 
 ## 📄 License
