@@ -37,7 +37,7 @@ jobs:
       head_sha: ${{ steps.scope.outputs.head_sha }}
     steps:
       - name: Checkout the exact event head
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ env.CI_HEAD_SHA }}
           fetch-depth: 0
@@ -129,7 +129,7 @@ jobs:
       matrix: ${{ fromJson(needs.validate.outputs.matrix) }}
     steps:
       - name: Checkout validated head
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ needs.validate.outputs.head_sha }}
           persist-credentials: false
