@@ -7,6 +7,10 @@ The ESP-IDF workflow validates the 12 first-party projects directly below
 and the checked-in factory firmware are inventoried separately and are not
 silently promoted into the product-example matrix.
 
+Only direct children of `examples/esp-idf` are first-party matrix entries.
+Nested `components/**/test_apps` remain component tests, are not discoverable as
+product examples, and cannot be selected through manual workflow dispatch.
+
 ## Required build matrix
 
 | Framework line | Exact CI release | First-party projects | Build jobs |
@@ -26,6 +30,7 @@ are selected from one complete, rename-aware Git diff.
 | Changed path kind | Example build selection |
 | --- | --- |
 | Root, docs, schematic, governance, or example Markdown | None |
+| Lightweight policy/maintenance helper, its test, Markdown-audit config, or `.gitignore` | None; run the lightweight policy gate with `docs_only=false` |
 | Source or configuration inside one first-party example | That example only |
 | Shared build configuration or the build workflow/discovery helper | All 12 |
 | Firmware documentation, source, binary, or archive | None; report firmware/release scope separately |

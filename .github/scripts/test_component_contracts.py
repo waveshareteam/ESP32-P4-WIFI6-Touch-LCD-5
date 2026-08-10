@@ -62,6 +62,12 @@ MP4_AUDIO_MANIFEST = """dependencies:
     public: true
 """
 
+PRODUCT_BSP_MANIFEST = """dependencies:
+  # The bundled/product-reviewed v1.0.3 contract differs from registry v2 APIs and initialization.
+  # Re-evaluate only after both IDF lines and hardware validation.
+  waveshare/esp_lcd_hx8394: '^1.0.3'
+"""
+
 HX_SOURCE = """#include "esp_idf_version.h"
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
 switch (panel_dev_config->rgb_ele_order) {}
@@ -109,6 +115,8 @@ class ContractRepository:
             self.write(f"{root}/idf_component.yml", "version: 1.0.3\n")
             self.write(f"{root}/license.txt", "MIT\n")
             self.write(f"{root}/README.md", "# HX8394\n")
+        for relative in CONTRACTS.PRODUCT_BSP_HX8394_MANIFESTS:
+            self.write(relative.as_posix(), PRODUCT_BSP_MANIFEST)
 
     def close(self) -> None:
         self.tempdir.cleanup()
@@ -190,6 +198,19 @@ class ComponentContractTests(unittest.TestCase):
             MP4_AUDIO_MANIFEST.replace('"2.5.0"', '"^2.3.0"'),
         )
         self.assertIn("MP4_AUDIO_CODEC_VERSION", self.repo.codes())
+
+    def test_floating_product_bsp_hx8394_dependency_is_rejected(self) -> None:
+        relative = CONTRACTS.PRODUCT_BSP_HX8394_MANIFESTS[0]
+        self.repo.write(
+            relative.as_posix(),
+            PRODUCT_BSP_MANIFEST.replace("'^1.0.3'", "'*'"),
+        )
+        self.assertIn("HX8394_PRODUCT_BSP_VERSION", self.repo.codes())
+
+    def test_missing_product_bsp_hx8394_dependency_is_rejected(self) -> None:
+        relative = CONTRACTS.PRODUCT_BSP_HX8394_MANIFESTS[0]
+        self.repo.write(relative.as_posix(), "dependencies:\n  idf: '>=5.4'\n")
+        self.assertIn("HX8394_PRODUCT_BSP_DEPENDENCY_MISSING", self.repo.codes())
 
 
 if __name__ == "__main__":

@@ -25,6 +25,21 @@ HX8394_SHARED_FILES = (
     "license.txt",
     "README.md",
 )
+PRODUCT_BSP_HX8394_GLOB = (
+    "examples/esp-idf/*/components/esp32_p4_wifi6_touch_lcd_5/idf_component.yml"
+)
+PRODUCT_BSP_HX8394_MANIFESTS = tuple(
+    Path(f"examples/esp-idf/{name}/components/esp32_p4_wifi6_touch_lcd_5/idf_component.yml")
+    for name in (
+        "07_Displaycolorbar",
+        "08_lvgl_demo_v9",
+        "09_video_lcd_display",
+        "10_mp4_player",
+        "11_esp_brookesia_phone",
+        "12_usb_extend_screen",
+    )
+)
+HX8394_PRODUCT_BSP_VERSION = "^1.0.3"
 
 
 @dataclass(frozen=True, order=True)
@@ -237,6 +252,55 @@ def check_hx8394(repo: Path) -> list[Finding]:
     return findings
 
 
+def check_hx8394_product_bsp_manifests(repo: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    manifests = sorted(path for path in repo.glob(PRODUCT_BSP_HX8394_GLOB) if path.is_file())
+    if len(manifests) != len(PRODUCT_BSP_HX8394_MANIFESTS):
+        findings.append(
+            Finding(
+                "examples/esp-idf",
+                "HX8394_PRODUCT_BSP_MANIFEST_COUNT",
+                "expected six product BSP manifests with the HX8394 dependency, "
+                f"found {len(manifests)}",
+            )
+        )
+
+    dependency = re.compile(
+        r"(?m)^  waveshare/esp_lcd_hx8394:\s*(?:['\"]([^'\"]+)['\"]|([^\s#]+))\s*$"
+    )
+    for relative in PRODUCT_BSP_HX8394_MANIFESTS:
+        path = repo / relative
+        if not path.is_file():
+            findings.append(
+                Finding(
+                    relative.as_posix(),
+                    "HX8394_PRODUCT_BSP_MANIFEST_MISSING",
+                    "required product BSP manifest is missing",
+                )
+            )
+            continue
+        match = dependency.search(path.read_text(encoding="utf-8"))
+        if not match:
+            findings.append(
+                Finding(
+                    relative.as_posix(),
+                    "HX8394_PRODUCT_BSP_DEPENDENCY_MISSING",
+                    "require waveshare/esp_lcd_hx8394 at ^1.0.3",
+                )
+            )
+            continue
+        version = match.group(1) or match.group(2)
+        if version != HX8394_PRODUCT_BSP_VERSION:
+            findings.append(
+                Finding(
+                    relative.as_posix(),
+                    "HX8394_PRODUCT_BSP_VERSION",
+                    "require waveshare/esp_lcd_hx8394 at ^1.0.3",
+                )
+            )
+    return findings
+
+
 def check_hosted_wifi(repo: Path) -> list[Finding]:
     manifest = read(repo, WIFI_MANIFEST)
     findings: list[Finding] = []
@@ -290,6 +354,7 @@ def run(repo: Path) -> list[Finding]:
         {
             *check_brookesia(repo),
             *check_hx8394(repo),
+            *check_hx8394_product_bsp_manifests(repo),
             *check_hosted_wifi(repo),
             *check_mp4_audio_codec(repo),
         }

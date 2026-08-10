@@ -30,6 +30,17 @@ GLOBAL_BUILD_PATTERNS = (
     "idf_component.yml",
 )
 
+# These repository-policy inputs are checked by the always-visible lightweight
+# job. They must not schedule product builds or be hidden as unknown paths.
+LIGHTWEIGHT_POLICY_PATTERNS = (
+    ".github/scripts/check_repository_policy.py",
+    ".github/scripts/test_repository_policy.py",
+    ".github/scripts/check_component_contracts.py",
+    ".github/scripts/test_component_contracts.py",
+    "config/markdown-audit.json",
+    ".gitignore",
+)
+
 # File-kind rules intentionally run before directory ownership rules.
 DOCUMENTATION_PATTERNS = (
     "*.md",
@@ -239,6 +250,10 @@ def classify_records(
                 continue
             seen_paths.add(path)
             route.changed_paths.append(path)
+
+            if matches(path, LIGHTWEIGHT_POLICY_PATTERNS):
+                route.docs_only = False
+                continue
 
             if matches(path, GLOBAL_BUILD_PATTERNS):
                 route.docs_only = False

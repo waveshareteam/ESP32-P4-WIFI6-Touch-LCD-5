@@ -15,7 +15,9 @@ dependencies:
   lvgl/lvgl: 
     public: true
     version: '9.5.0'
-  waveshare/esp_lcd_hx8394: '*'
+  # Keep the bundled/product-reviewed v1.0.3 contract: registry v2 changes APIs and initialization.
+  # Re-evaluate only after both required IDF lines and hardware validation.
+  waveshare/esp_lcd_hx8394: '^1.0.3'
 description: Based on ESP32-P4 chip, waveshare electronics designed a 5-inch screen, highly integrated development board
 repository: git://github.com/WaveshareCloud/Waveshare-ESP32-components.git
 tags:

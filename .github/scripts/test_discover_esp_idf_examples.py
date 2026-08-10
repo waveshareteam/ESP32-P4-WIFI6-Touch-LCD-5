@@ -26,6 +26,16 @@ class SyntheticRepository:
             self.write(f"examples/esp-idf/{name}/CMakeLists.txt", "# project\n")
             self.write(f"examples/esp-idf/{name}/main/app.c", "void app_main(void) {}\n")
             self.write(f"examples/esp-idf/{name}/main/keep.c", "/* keep */\n")
+        self.write(
+            "examples/esp-idf/alpha/components/dependency/test_apps/nested/"
+            "CMakeLists.txt",
+            "# nested test app\n",
+        )
+        self.write(
+            "examples/esp-idf/alpha/components/dependency/test_apps/nested/"
+            "main/app.c",
+            "void app_main(void) {}\n",
+        )
         self.commit("baseline")
         self.base = self.rev()
 
@@ -121,6 +131,19 @@ class RoutingContractTests(unittest.TestCase):
                     len(expected_examples) * 2,
                 )
 
+    def test_nested_component_test_app_is_not_first_party_or_manually_selectable(self) -> None:
+        _, payload = self.repo.route("--example", "all")
+        assert payload is not None
+        self.assertEqual(
+            payload["examples"],
+            ["examples/esp-idf/alpha", "examples/esp-idf/beta"],
+        )
+        self.repo.route(
+            "--example",
+            "examples/esp-idf/alpha/components/dependency/test_apps/nested",
+            expected_code=1,
+        )
+
     def test_root_markdown_selects_no_examples(self) -> None:
         self.repo.write("README.md", "# Updated\n")
         self.repo.commit("docs")
@@ -163,6 +186,28 @@ class RoutingContractTests(unittest.TestCase):
         payload = self.repo.route_diff()
         self.assertEqual(len(payload["examples"]), 2)
 
+    def test_lightweight_policy_paths_select_no_examples_without_docs_only_or_unknown(self) -> None:
+        scope = self.repo.root / "policy-scope.txt"
+        scope.write_text(
+            "\n".join(
+                (
+                    "M\t.github/scripts/check_repository_policy.py",
+                    "M\t.github/scripts/test_repository_policy.py",
+                    "M\t.github/scripts/check_component_contracts.py",
+                    "M\t.github/scripts/test_component_contracts.py",
+                    "M\tconfig/markdown-audit.json",
+                    "M\t.gitignore",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        _, payload = self.repo.route("--changed-files-from", str(scope))
+        assert payload is not None
+        self.assertEqual(payload["examples"], [])
+        self.assertFalse(payload["docs_only"])
+        self.assertEqual(payload["unknown_paths"], [])
+
     def test_firmware_markdown_is_docs_only_and_never_builds_examples(self) -> None:
         self.repo.write("firmware/README.md", "# Delivery notes\n")
         self.repo.commit("firmware docs")
@@ -180,6 +225,27 @@ class RoutingContractTests(unittest.TestCase):
         self.assertFalse(payload["docs_only"])
         self.assertTrue(payload["firmware_changed"])
         self.assertTrue(payload["release_review"])
+
+    def test_mixed_firmware_source_config_and_archive_require_release_review_without_builds(self) -> None:
+        scope = self.repo.root / "firmware-scope.txt"
+        scope.write_text(
+            "\n".join(
+                (
+                    "M\tfirmware/project/main/app.c",
+                    "M\tfirmware/project/sdkconfig.defaults",
+                    "M\tfirmware/delivery.zip",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        _, payload = self.repo.route("--changed-files-from", str(scope))
+        assert payload is not None
+        self.assertEqual(payload["examples"], [])
+        self.assertFalse(payload["docs_only"])
+        self.assertTrue(payload["firmware_changed"])
+        self.assertTrue(payload["release_review"])
+        self.assertEqual(payload["unknown_paths"], [])
 
     def test_rename_and_deletion_preserve_project_impact(self) -> None:
         self.repo.rename(

@@ -37,6 +37,15 @@ side-effect-free release supports both required IDF lines and is validated on
 this board. The repository policy job detects drift in the shared local driver
 files.
 
+## HX8394 product BSP dependency contract
+
+The six display-capable product BSP manifests require
+`waveshare/esp_lcd_hx8394: '^1.0.3'`. This preserves the bundled,
+product-reviewed v1.0.3 contract: registry v2 has different APIs and panel
+initialization behavior. Reassess the constraint only after both required ESP-IDF
+lines and the target hardware have been validated; do not change embedded
+upstream HX8394 content as part of that reassessment.
+
 ## Brookesia dependency contract
 
 The checked-in Brookesia core identifies itself as release/v0.6 integration.
