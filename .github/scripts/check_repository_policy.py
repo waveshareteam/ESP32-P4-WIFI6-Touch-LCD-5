@@ -9,6 +9,7 @@ repository-specific policy and retains its upstream naming and content.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -28,6 +29,32 @@ EMOJI_RE = re.compile(
     "[\U0001F000-\U0001FAFF\u2600-\u27BF\u2300-\u23FF]"
 )
 QUICK_LINK_ICONS = ("🌐", "📚", "📦", "🚀", "🧩", "🔧")
+CONFIG_PATH = Path("config/markdown-audit.json")
+QUICK_LINKS = {
+    "product": "🌐",
+    "documentation": "📚",
+    "firmware": "📦",
+    "quick_start": "🚀",
+    "esp_idf": "🧩",
+    "arduino": "🔧",
+}
+REQUIRED_SINGLE_PRODUCT_COMPONENTS = frozenset(
+    {
+        "centered_header",
+        "html_h1",
+        "subtitle",
+        "badges",
+        "language_switch",
+        "quick_links",
+        "hero_image",
+        "separator",
+        "h2",
+    }
+)
+REQUIRED_SINGLE_PRODUCT_QUICK_LINKS = frozenset(
+    {"product", "documentation", "firmware", "esp_idf"}
+)
+REQUIRED_SINGLE_PRODUCT_BADGES = frozenset({"build", "license"})
 
 PUBLIC_TEXT_PATTERNS = (
     (
@@ -67,6 +94,17 @@ class Finding:
     line: int
     code: str
     message: str
+
+
+@dataclass(frozen=True)
+class HomepagePair:
+    english: str
+    chinese: str
+    profile: str
+    required_components: frozenset[str]
+    required_quick_links: tuple[str, ...]
+    required_badges: tuple[str, ...]
+    required_h2_icons: tuple[str, ...]
 
 
 def relative(repo: Path, path: Path) -> str:
@@ -291,7 +329,10 @@ def h2_icons(text: str) -> list[str]:
             continue
         title = line[3:].strip()
         match = EMOJI_RE.match(title)
-        icons.append(match.group(0) if match else "")
+        icon = match.group(0) if match else ""
+        if title.startswith(icon + "\ufe0f"):
+            icon += "\ufe0f"
+        icons.append(icon)
     return icons
 
 
@@ -300,99 +341,120 @@ def quick_icons(header: str) -> list[str]:
     return [match.group(0) for match in re.finditer(icon_pattern, header)]
 
 
-def check_homepage(repo: Path) -> list[Finding]:
-    english_path = repo / "README.md"
-    chinese_path = repo / "README_ZH.md"
-    if not english_path.is_file() or not chinese_path.is_file():
-        return []
+def load_homepage_pairs(repo: Path) -> list[HomepagePair]:
+    config_path = repo / CONFIG_PATH
+    if not config_path.is_file():
+        raise OSError(f"homepage policy config is missing: {CONFIG_PATH.as_posix()}")
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid homepage policy config: {error.msg}") from error
+    if not isinstance(config, dict) or not isinstance(config.get("homepage_pairs"), list):
+        raise ValueError("invalid homepage policy config: homepage_pairs must be a list")
 
+    pairs: list[HomepagePair] = []
+    for index, item in enumerate(config["homepage_pairs"], start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"invalid homepage policy config: homepage_pairs[{index}] must be an object")
+        fields = ("english", "chinese", "profile", "required_components", "required_quick_links", "required_badges", "required_h2_icons")
+        if any(field not in item for field in fields):
+            raise ValueError(f"invalid homepage policy config: homepage_pairs[{index}] is incomplete")
+        english, chinese, profile = (item[field] for field in ("english", "chinese", "profile"))
+        lists = tuple(item[field] for field in fields[3:])
+        if (
+            not all(isinstance(value, str) and value for value in (english, chinese, profile))
+            or not all(isinstance(value, list) and all(isinstance(entry, str) for entry in value) for value in lists)
+        ):
+            raise ValueError(f"invalid homepage policy config: homepage_pairs[{index}] has invalid values")
+        if profile != "single-product":
+            raise ValueError(f"invalid homepage policy config: unsupported homepage profile {profile!r}")
+        components = frozenset(lists[0])
+        quick_links, badges, h2_icons = (tuple(values) for values in lists[1:])
+        if not REQUIRED_SINGLE_PRODUCT_COMPONENTS <= components:
+            raise ValueError(f"invalid homepage policy config: homepage_pairs[{index}] omits required components")
+        if not REQUIRED_SINGLE_PRODUCT_QUICK_LINKS <= set(quick_links):
+            raise ValueError(f"invalid homepage policy config: homepage_pairs[{index}] omits required quick links")
+        if not REQUIRED_SINGLE_PRODUCT_BADGES <= set(badges) or not h2_icons:
+            raise ValueError(f"invalid homepage policy config: homepage_pairs[{index}] omits required badge or H2 policy")
+        if any(key not in QUICK_LINKS for key in quick_links) or any(key not in {"build", "license"} for key in badges):
+            raise ValueError(f"invalid homepage policy config: homepage_pairs[{index}] has an unsupported key")
+        pairs.append(HomepagePair(english, chinese, profile, components, quick_links, badges, h2_icons))
+    if not pairs:
+        raise ValueError("invalid homepage policy config: homepage_pairs must not be empty")
+    return pairs
+
+
+def header_for(text: str) -> str:
+    header_end = text.find("</div>")
+    return text[: header_end + len("</div>")] if header_end >= 0 else ""
+
+
+def header_has_badge(header: str, key: str) -> bool:
+    lowered = header.lower()
+    if key == "build":
+        return "actions/workflows" in lowered and "<img" in lowered
+    return key in lowered and "<img" in lowered
+
+
+def header_has_quick_link(header: str, key: str) -> bool:
+    icon = QUICK_LINKS[key]
+    return bool(re.search(rf'<a\s+href=["\'][^"\']+?["\'][^>]*>[^<]*{re.escape(icon)}', header))
+
+
+def check_homepage(repo: Path, pairs: list[HomepagePair]) -> list[Finding]:
     findings: list[Finding] = []
-    english = english_path.read_text(encoding="utf-8")
-    chinese = chinese_path.read_text(encoding="utf-8")
-    for path, text, language_target in (
-        (english_path, english, "README_ZH.md"),
-        (chinese_path, chinese, "README.md"),
-    ):
-        header_end = text.find("</div>")
-        header = text[: header_end + len("</div>")] if header_end >= 0 else ""
-        required = (
-            ('<div align="center">', "centered header"),
-            ("<h1>", "plain HTML level-one title"),
-            ("<img", "badge or product image"),
-            (language_target, "reciprocal language switch"),
-        )
-        for token, label in required:
-            if token not in header:
-                findings.append(
-                    Finding(
-                        relative(repo, path),
-                        1,
-                        "HOMEPAGE_COMPONENT_MISSING",
-                        f"homepage header is missing {label}",
-                    )
-                )
-        if "\n---\n" not in text:
-            findings.append(
-                Finding(
-                    relative(repo, path),
-                    1,
-                    "HOMEPAGE_COMPONENT_MISSING",
-                    "homepage is missing the header/body separator",
-                )
-            )
-        h1 = re.search(r"<h1>(.*?)</h1>", header)
-        if h1 and EMOJI_RE.search(h1.group(1)):
-            findings.append(
-                Finding(
-                    relative(repo, path),
-                    line_number(text, h1.start()),
-                    "HOMEPAGE_H1_EMOJI",
-                    "keep the product title free of emoji",
-                )
-            )
-        for match in re.finditer(r"(?m)^###\s+(.+)$", text):
-            if EMOJI_RE.match(match.group(1).strip()):
-                findings.append(
-                    Finding(
-                        relative(repo, path),
-                        line_number(text, match.start()),
-                        "HOMEPAGE_H3_EMOJI",
-                        "tertiary headings must remain plain",
-                    )
-                )
+    for pair in pairs:
+        english_path = repo / pair.english
+        chinese_path = repo / pair.chinese
+        if not english_path.is_file() or not chinese_path.is_file():
+            missing = english_path if not english_path.is_file() else chinese_path
+            findings.append(Finding(relative(repo, missing), 1, "HOMEPAGE_PAIR_MISSING", "configured homepage file is missing"))
+            continue
 
-    english_header = english.split("</div>", 1)[0]
-    chinese_header = chinese.split("</div>", 1)[0]
-    if quick_icons(english_header) != quick_icons(chinese_header):
-        findings.append(
-            Finding(
-                "README.md",
-                1,
-                "HOMEPAGE_QUICK_LINK_ASYMMETRY",
-                "English and Chinese quick-link icon sequences differ",
-            )
-        )
+        english = english_path.read_text(encoding="utf-8")
+        chinese = chinese_path.read_text(encoding="utf-8")
+        for path, text, language_target in ((english_path, english, chinese_path.name), (chinese_path, chinese, english_path.name)):
+            header = header_for(text)
+            component_checks = {
+                "centered_header": ('<div align="center">' in header, "centered header"),
+                "html_h1": ("<h1>" in header and "</h1>" in header, "plain HTML level-one title"),
+                "subtitle": ("<strong>" in header, "subtitle"),
+                "badges": ("<img" in header, "badges"),
+                "language_switch": (language_target in header, "reciprocal language switch"),
+                "quick_links": (bool(quick_icons(header)), "quick links"),
+                "hero_image": (any(line.lstrip().startswith("<img") for line in header.splitlines()), "hero image"),
+                "separator": ("\n---\n" in text, "header/body separator"),
+                "h2": (bool(h2_icons(text)), "primary sections"),
+            }
+            for component in pair.required_components:
+                present, label = component_checks[component]
+                if not present:
+                    findings.append(Finding(relative(repo, path), 1, "HOMEPAGE_COMPONENT_MISSING", f"homepage is missing {label}"))
+            for key in pair.required_quick_links:
+                if not header_has_quick_link(header, key):
+                    findings.append(Finding(relative(repo, path), 1, "HOMEPAGE_QUICK_LINK_MISSING", f"homepage is missing {key} quick link with URL"))
+            for key in pair.required_badges:
+                if not header_has_badge(header, key):
+                    findings.append(Finding(relative(repo, path), 1, "HOMEPAGE_BADGE_MISSING", f"homepage is missing {key} badge"))
+            h1 = re.search(r"<h1>(.*?)</h1>", header)
+            if h1 and EMOJI_RE.search(h1.group(1)):
+                findings.append(Finding(relative(repo, path), line_number(text, h1.start()), "HOMEPAGE_H1_EMOJI", "keep the product title free of emoji"))
+            for match in re.finditer(r"(?m)^###\s+(.+)$", text):
+                if EMOJI_RE.match(match.group(1).strip()):
+                    findings.append(Finding(relative(repo, path), line_number(text, match.start()), "HOMEPAGE_H3_EMOJI", "tertiary headings must remain plain"))
 
-    english_h2 = h2_icons(english)
-    chinese_h2 = h2_icons(chinese)
-    if "" in english_h2 or "" in chinese_h2:
-        findings.append(
-            Finding(
-                "README.md",
-                1,
-                "HOMEPAGE_H2_ICON_MISSING",
-                "every primary homepage section needs one semantic emoji",
-            )
-        )
-    if english_h2 != chinese_h2:
-        findings.append(
-            Finding(
-                "README.md",
-                1,
-                "HOMEPAGE_H2_ASYMMETRY",
-                "English and Chinese primary-section emoji sequences differ",
-            )
-        )
+        english_header = header_for(english)
+        chinese_header = header_for(chinese)
+        if quick_icons(english_header) != quick_icons(chinese_header):
+            findings.append(Finding(pair.english, 1, "HOMEPAGE_QUICK_LINK_ASYMMETRY", "English and Chinese quick-link icon sequences differ"))
+        english_h2 = h2_icons(english)
+        chinese_h2 = h2_icons(chinese)
+        if "" in english_h2 or "" in chinese_h2:
+            findings.append(Finding(pair.english, 1, "HOMEPAGE_H2_ICON_MISSING", "every primary homepage section needs one semantic emoji"))
+        if english_h2 != chinese_h2:
+            findings.append(Finding(pair.english, 1, "HOMEPAGE_H2_ASYMMETRY", "English and Chinese primary-section emoji sequences differ"))
+        if tuple(english_h2) != pair.required_h2_icons or tuple(chinese_h2) != pair.required_h2_icons:
+            findings.append(Finding(pair.english, 1, "HOMEPAGE_H2_POLICY_MISMATCH", "homepage primary-section emoji sequence does not match configured policy"))
     return findings
 
 
@@ -404,11 +466,12 @@ def run(repo: Path) -> list[Finding]:
     if not paths:
         raise OSError("no product-owned Markdown files were found")
 
+    pairs = load_homepage_pairs(repo)
     findings = [
         *check_pairs(repo, paths),
         *check_links(repo, paths),
         *check_public_text(repo, paths),
-        *check_homepage(repo),
+        *check_homepage(repo, pairs),
     ]
     return sorted(set(findings))
 

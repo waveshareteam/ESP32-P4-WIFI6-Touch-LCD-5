@@ -21,7 +21,9 @@ SPEC.loader.exec_module(POLICY)
 
 ENGLISH_HOME = """<div align="center">
   <h1>Test Product</h1>
-  <p><a href="README_ZH.md">中文</a> · <a href="docs/GUIDE.md">📚 Documentation</a></p>
+  <p><a href="https://example.invalid/actions/workflows/test.yml"><img alt="Build" src="https://example.invalid/badge.svg"></a> <a href="https://example.invalid/license"><img alt="License" src="https://example.invalid/license.svg"></a></p>
+  <p><strong>Test product subtitle</strong></p>
+  <p><a href="README_ZH.md">中文</a> · <a href="https://example.invalid/product">🌐 Product</a> · <a href="https://example.invalid/docs">📚 Documentation</a> · <a href="firmware/">📦 Firmware</a> · <a href="examples/esp-idf/">🧩 ESP-IDF</a></p>
   <img src="assets/product.png" alt="Test Product">
 </div>
 
@@ -34,7 +36,9 @@ See the [guide](docs/GUIDE.md#setup).
 
 CHINESE_HOME = """<div align="center">
   <h1>Test Product</h1>
-  <p><a href="README.md">English</a> · <a href="docs/GUIDE_ZH.md">📚 文档</a></p>
+  <p><a href="https://example.invalid/actions/workflows/test.yml"><img alt="Build" src="https://example.invalid/badge.svg"></a> <a href="https://example.invalid/license"><img alt="License" src="https://example.invalid/license.svg"></a></p>
+  <p><strong>测试产品副标题</strong></p>
+  <p><a href="README.md">English</a> · <a href="https://example.invalid/product">🌐 产品</a> · <a href="https://example.invalid/docs">📚 文档</a> · <a href="firmware/">📦 固件</a> · <a href="examples/esp-idf/">🧩 ESP-IDF</a></p>
   <img src="assets/product.png" alt="Test Product">
 </div>
 
@@ -61,6 +65,22 @@ class PolicyRepository:
             "[English](GUIDE.md)\n\n# 指南\n\n## 配置\n",
         )
         self.write("assets/product.png", b"png")
+        self.write("firmware/.keep", "")
+        self.write("examples/esp-idf/.keep", "")
+        self.write(
+            "config/markdown-audit.json",
+            """{
+  "homepage_pairs": [{
+    "english": "README.md",
+    "chinese": "README_ZH.md",
+    "profile": "single-product",
+    "required_components": ["centered_header", "html_h1", "subtitle", "badges", "language_switch", "quick_links", "hero_image", "separator", "h2"],
+    "required_quick_links": ["product", "documentation", "firmware", "esp_idf"],
+    "required_badges": ["build", "license"],
+    "required_h2_icons": ["✨"]
+  }]
+}""",
+        )
 
     def close(self) -> None:
         self.tempdir.cleanup()
@@ -156,6 +176,28 @@ class RepositoryPolicyTests(unittest.TestCase):
             CHINESE_HOME.replace("📚 文档", "📦 组件 · 📚 文档"),
         )
         self.assertIn("HOMEPAGE_QUICK_LINK_ASYMMETRY", self.codes())
+
+    def test_missing_product_quick_link_is_rejected(self) -> None:
+        self.repo.write(
+            "README.md",
+            ENGLISH_HOME.replace(' · <a href="https://example.invalid/product">🌐 Product</a>', ""),
+        )
+        self.assertIn("HOMEPAGE_QUICK_LINK_MISSING", self.codes())
+
+    def test_missing_hero_image_is_rejected(self) -> None:
+        self.repo.write(
+            "README.md",
+            ENGLISH_HOME.replace('  <img src="assets/product.png" alt="Test Product">\n', ""),
+        )
+        self.assertIn("HOMEPAGE_COMPONENT_MISSING", self.codes())
+
+    def test_current_repository_passes_configured_homepage_policy(self) -> None:
+        self.assertEqual([], POLICY.run(SCRIPT.parents[2]))
+
+    def test_invalid_homepage_policy_config_is_rejected(self) -> None:
+        self.repo.write("config/markdown-audit.json", "{}")
+        with self.assertRaisesRegex(ValueError, "homepage_pairs"):
+            self.repo.findings()
 
 
 if __name__ == "__main__":
