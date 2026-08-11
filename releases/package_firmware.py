@@ -25,8 +25,8 @@ WRITE_FLASH_OPTIONS = {
     "--flash_freq": ("freq", {"keep", "20m", "26m", "40m", "80m"}),
     "--flash-freq": ("freq", {"keep", "20m", "26m", "40m", "80m"}),
 }
-SAFE_BEFORE = {"default_reset", "no_reset"}
-SAFE_AFTER = {"hard_reset", "soft_reset", "no_reset"}
+SAFE_BEFORE = {"default_reset", "no_reset", "default-reset", "no-reset"}
+SAFE_AFTER = {"hard_reset", "no_reset", "hard-reset", "no-reset"}
 
 
 def slugify(value: str) -> str:

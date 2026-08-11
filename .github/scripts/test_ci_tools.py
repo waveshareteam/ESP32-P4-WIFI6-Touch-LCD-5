@@ -27,7 +27,7 @@ packager = load_module("p4_firmware_packager", REPO_ROOT / "releases/package_fir
 
 
 class PackageTests(unittest.TestCase):
-    def package(self, root: Path, files: dict[str, str], version: str = "v5.5.5", write_args: object | None = None) -> Path:
+    def package(self, root: Path, files: dict[str, str], version: str = "v5.5.5", write_args: object | None = None, extra_args: object | None = None) -> Path:
         project = Path("examples/esp-idf/01_Demo")
         build = project / "build"
         for relative, content in files.items():
@@ -38,7 +38,7 @@ class PackageTests(unittest.TestCase):
         payload = {
             "flash_files": flash_files,
             "write_flash_args": ["--flash_mode", "dio", "--flash_size", "32MB", "--flash_freq", "80m"] if write_args is None else write_args,
-            "extra_esptool_args": {"chip": "esp32p4", "before": "default_reset", "after": "hard_reset", "stub": False},
+            "extra_esptool_args": {"chip": "esp32p4", "before": "default_reset", "after": "hard_reset", "stub": False} if extra_args is None else extra_args,
         }
         (root / build / "flasher_args.json").write_text(json.dumps(payload), encoding="utf-8")
         with mock.patch.dict(os.environ, {"PACKAGE_GIT_SHA": "a" * 40}, clear=False):
@@ -68,14 +68,14 @@ class PackageTests(unittest.TestCase):
     def test_hyphenated_idf6_write_args_are_preserved_in_manifest_and_helpers(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            bundle = self.package(root, {"bootloader/bootloader.bin": "boot", "demo.bin": "application"}, "v6.0.2", {"--flash-mode": "qio", "--flash-size": "16MB", "--flash-freq": "40m"})
+            bundle = self.package(root, {"bootloader/bootloader.bin": "boot", "demo.bin": "application"}, "v6.0.2", {"--flash-mode": "qio", "--flash-size": "16MB", "--flash-freq": "40m"}, {"chip": "esp32p4", "before": "default-reset", "after": "hard-reset", "stub": False})
             with zipfile.ZipFile(root / bundle) as archive:
                 manifest = json.loads(archive.read("manifest.json"))
                 shell = archive.read("flash.sh").decode("utf-8")
                 batch = archive.read("flash.bat").decode("utf-8")
             self.assertEqual([entry["option"] for entry in manifest["flash"]["write_flash_args"]], ["--flash-mode", "--flash-size", "--flash-freq"])
             for text in (manifest["flash"]["command"], shell, batch):
-                self.assertIn("--before default_reset --after hard_reset --no-stub write_flash", text)
+                self.assertIn("--before default-reset --after hard-reset --no-stub write_flash", text)
                 self.assertIn("--flash-mode qio --flash-size 16MB --flash-freq 40m", text)
             self.assertIn("--port PORT", manifest["flash"]["command"])
             self.assertIn('Usage: $0 PORT', shell)
@@ -96,6 +96,20 @@ class PackageTests(unittest.TestCase):
                 root = Path(temporary)
                 with self.assertRaises(ValueError):
                     self.package(root, {"bootloader/bootloader.bin": "boot", "demo.bin": "application"}, write_args=write_args)
+
+    def test_rejects_non_generated_extra_esptool_reset_values(self) -> None:
+        for before, after in (
+            ("soft_reset", "hard_reset"),
+            ("soft-reset", "hard-reset"),
+            ("usb_reset", "hard_reset"),
+            ("usb-reset", "hard-reset"),
+            ("default_reset; injected", "hard_reset"),
+            ("default-reset", "unknown"),
+        ):
+            with self.subTest(before=before, after=after), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                with self.assertRaises(ValueError):
+                    self.package(root, {"bootloader/bootloader.bin": "boot", "demo.bin": "application"}, extra_args={"chip": "esp32p4", "before": before, "after": after, "stub": False})
 
     def test_rejects_escape_overlap_and_32mib_overflow(self) -> None:
         for flash_files, contents in (

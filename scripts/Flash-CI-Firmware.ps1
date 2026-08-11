@@ -14,8 +14,8 @@ $Board = 'ESP32-P4-WIFI6-Touch-LCD-5'
 $Chip = 'esp32p4'
 $FlashLimit = 32MB
 $DefaultStartIndex = 1
-$SafeBefore = @('default_reset', 'no_reset')
-$SafeAfter = @('hard_reset', 'soft_reset', 'no_reset')
+$SafeBefore = @('default_reset', 'no_reset', 'default-reset', 'no-reset')
+$SafeAfter = @('hard_reset', 'no_reset', 'hard-reset', 'no-reset')
 $Projects = @(
     'examples/esp-idf/01_HowToCreateProject', 'examples/esp-idf/02_HelloWorld',
     'examples/esp-idf/03_i2c_tools', 'examples/esp-idf/04_wifistation',
