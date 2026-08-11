@@ -320,7 +320,11 @@ def normalize_example(value: str, known_examples: set[str]) -> str:
 def build_matrix(selected: list[str]) -> dict[str, list[dict[str, str]]]:
     return {
         "include": [
-            {"example": example, "idf_version": idf_version}
+            {
+                "example": example,
+                "project_slug": re.sub(r"[^a-z0-9]+", "-", Path(example).name.lower()).strip("-"),
+                "idf_version": idf_version,
+            }
             for example in selected
             for idf_version in DEFAULT_IDF_VERSIONS
         ]

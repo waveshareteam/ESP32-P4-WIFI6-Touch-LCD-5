@@ -56,6 +56,7 @@ jobs:
           python .github/scripts/test_discover_esp_idf_examples.py
           python .github/scripts/test_repository_policy.py
           python .github/scripts/test_component_contracts.py
+          python .github/scripts/test_ci_tools.py
 
       - name: Check first-party Markdown policy
         shell: bash
@@ -140,6 +141,26 @@ jobs:
           esp_idf_version: ${{ matrix.idf_version }}
           target: esp32p4
           path: ${{ matrix.example }}
+
+      - name: Package CI firmware bundle
+        env:
+          PACKAGE_GIT_SHA: ${{ needs.validate.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python releases/package_firmware.py \
+            --project "${{ matrix.example }}" \
+            --build-dir "${{ matrix.example }}/build" \
+            --framework-version "${{ matrix.idf_version }}" \
+            --output-dir release-artifacts
+
+      - name: Upload CI firmware bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: firmware-esp-idf-${{ matrix.project_slug }}-${{ matrix.idf_version }}
+          path: release-artifacts/*.zip
+          if-no-files-found: error
+          retention-days: 14
 
   result:
     name: ESP-IDF examples

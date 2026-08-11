@@ -52,3 +52,33 @@ Git diff 决定。
 
 路由、Markdown 和组件策略辅助脚本均配有合成测试，覆盖文档、直接源码、共享输入、
 固件、重命名/删除、未知路径及不完整 diff。
+
+## CI 固件包与人工硬件验证
+
+每个必需的 ESP-IDF 构建还会创建一个名为
+`firmware-esp-idf-<project-slug>-<version>` 的 artifact。12 个直属工程乘以两个
+ESP-IDF 版本，共得到 24 个可独立追溯的固件包。包由该构建真实的
+`flasher_args.json` 生成，保留实际 offset，不猜测固定的 ESP32-P4 offset；其中包含
+`bin/**`、`manifest.json`、`metadata/flasher_args.json`、`flash.sh` 与 `flash.bat`。
+包会将构建已验证的 flash mode、size、freq、reset 和 stub 设置作为结构化 manifest 数据
+保留，并用于每个生成的烧录命令；未知或不安全的 esptool 参数会被拒绝。包内的
+`flash.sh` 和 `flash.bat` 必须接收一个显式端口参数（`PORT` 或 `COMx`），绝不自动选择设备。
+
+人工测试前，请安装 GitHub CLI 和带 esptool 的 Python，并执行 `gh auth login`。在
+干净、非 detached 的分支且恰有一个已打开、非草稿 PR 时，从稳定的 Windows 入口运行：
+
+```text
+Flash-CI-Firmware.cmd -SelfTest
+Flash-CI-Firmware.cmd -ListOnly
+Flash-CI-Firmware.cmd -Port COMx [-Baud N]
+```
+
+`-SelfTest` 与 `-ListOnly` 是离线检查：不会访问 GitHub、串口设备或 artifact。普通模式
+必须显式传入占位符 `COMx`，绝不猜测串口设备。它只接受最终 PR HEAD SHA 的成功工作流运行
+及准确 artifact 名称，校验 manifest 身份、每个相对二进制路径、大小、SHA-256、offset、
+重叠和 32 MiB flash 边界；之后还要求 esptool 成功退出并输出 `Hash of data verified`。
+每次烧录后，用户必须实际检查硬件并输入 `PASS`；进度存放在用户本地应用数据中，final SHA
+改变或保存状态无效时会自动重置。
+
+这些 CI 固件包是测试输出，不是仓库内的出厂固件。CI 构建和完整性门禁不代表已完成物理
+测试；24 项硬件验证仍须由用户逐项执行。

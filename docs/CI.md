@@ -59,3 +59,42 @@ release workflows.
 The routing and Markdown/component-policy helpers have synthetic tests covering
 documentation, direct source, shared inputs, firmware, rename/deletion,
 unfamiliar paths, and incomplete diff data.
+
+## CI firmware bundles and manual hardware verification
+
+Each required ESP-IDF build also creates one artifact named
+`firmware-esp-idf-<project-slug>-<version>`. The 12 direct projects and two
+ESP-IDF releases therefore create 24 independently traceable bundles. The
+bundle is generated from that build's `flasher_args.json`; it preserves the
+actual offsets rather than assuming fixed ESP32-P4 offsets, and includes
+`bin/**`, `manifest.json`, `metadata/flasher_args.json`, `flash.sh`, and
+`flash.bat`.
+The package preserves the build's validated flash mode, size, frequency, reset,
+and stub settings as structured manifest data and uses them in every generated
+flash command; unknown or unsafe esptool arguments are rejected. The bundled
+`flash.sh` and `flash.bat` require one explicit port argument (`PORT` or `COMx`)
+and never choose a device automatically.
+
+Before manually testing, install GitHub CLI and Python with esptool, then sign
+in with `gh auth login`. From a clean, non-detached branch with exactly one
+open non-draft PR, use the stable Windows entry point:
+
+```text
+Flash-CI-Firmware.cmd -SelfTest
+Flash-CI-Firmware.cmd -ListOnly
+Flash-CI-Firmware.cmd -Port COMx [-Baud N]
+```
+
+`-SelfTest` and `-ListOnly` are offline checks: they do not access GitHub,
+serial devices, or artifacts. Normal mode requires the explicit placeholder
+`COMx`; it never guesses a serial device. It accepts only a successful workflow
+run for the final PR HEAD SHA and the exact artifact name, verifies the manifest
+identity, checks every relative binary path, size, SHA-256, offset, overlap, and
+32 MiB flash boundary, then requires both a successful esptool exit code and
+`Hash of data verified`. After each flash, the user must manually inspect the
+hardware and type `PASS`; progress is local application data and automatically
+resets for a different final SHA or invalid saved state.
+
+These CI bundles are test outputs, not the checked-in factory firmware. The CI
+build and integrity gates do not perform physical testing; all 24 hardware
+checks remain an explicit user action.
