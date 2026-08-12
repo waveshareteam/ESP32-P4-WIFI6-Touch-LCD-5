@@ -6,3 +6,11 @@ dependencies:
   espressif/usb_device_uac:
     version: "1.2.0"
   espressif/tinyusb: "*"
+  waveshare/esp32_p4_wifi6_touch_lcd_5:
+    git: https://github.com/waveshareteam/Waveshare-ESP32-components.git
+    path: bsp/esp32_p4_wifi6_touch_lcd_5
+    version: "7580ddc989c526678bd7364ece19bfdf1a2745c9"
+  waveshare/esp_lcd_hx8394:
+    git: https://github.com/waveshareteam/Waveshare-ESP32-components.git
+    path: display/lcd/esp_lcd_hx8394
+    version: "7580ddc989c526678bd7364ece19bfdf1a2745c9"

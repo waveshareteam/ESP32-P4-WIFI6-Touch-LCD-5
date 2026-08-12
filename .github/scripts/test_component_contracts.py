@@ -17,7 +17,6 @@ CONTRACTS = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = CONTRACTS
 SPEC.loader.exec_module(CONTRACTS)
 
-
 KCONFIG = """menu "Test"
     config ESP_BROOKESIA_ENABLE_AI_FRAMEWORK
         bool
@@ -28,7 +27,6 @@ KCONFIG = """menu "Test"
         default y
 endmenu
 """
-
 BROOKESIA_MANIFEST = """dependencies:
   espressif/esp-boost:
     matches:
@@ -38,7 +36,6 @@ BROOKESIA_MANIFEST = """dependencies:
         version: "0.3.*"
     public: true
 """
-
 WIFI_MANIFEST = """dependencies:
   # Revisit with matching slave firmware.
   espressif/esp_wifi_remote:
@@ -54,27 +51,21 @@ WIFI_MANIFEST = """dependencies:
       - if: "idf_version < 6.0"
         version: "1.4.*"
 """
-
 MP4_AUDIO_MANIFEST = """dependencies:
-  # v2.6.0 requires ESP32-P4 revision >= 3.
   espressif/esp_audio_codec:
     version: "2.5.0"
-    public: true
+"""
+REVISION_DEFAULTS = """CONFIG_IDF_TARGET="esp32p4"
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP32P4_REV_MIN_100=y
 """
 
-PRODUCT_BSP_MANIFEST = """dependencies:
-  # The bundled/product-reviewed v1.0.3 contract differs from registry v2 APIs and initialization.
-  # Re-evaluate only after both IDF lines and hardware validation.
-  waveshare/esp_lcd_hx8394: '^1.0.3'
-"""
 
-HX_SOURCE = """#include "esp_idf_version.h"
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
-switch (panel_dev_config->rgb_ele_order) {}
-#else
-switch (panel_dev_config->color_space) {}
-#endif
-// i2c_bus_write_bytes(device, 0, 0, data);
+def git_dependency(component: str, path: str) -> str:
+    return f"""  {component}:
+    git: {CONTRACTS.COMPONENT_REPOSITORY}
+    path: {path}
+    version: "{CONTRACTS.COMPONENT_REVISION}"
 """
 
 
@@ -82,41 +73,30 @@ class ContractRepository:
     def __init__(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory()
         self.root = Path(self.tempdir.name)
-        self.write(
-            "examples/esp-idf/11_esp_brookesia_phone/components/"
-            "brookesia_core/Kconfig",
-            KCONFIG,
-        )
-        self.write(
-            "examples/esp-idf/11_esp_brookesia_phone/components/"
-            "brookesia_core/idf_component.yml",
-            BROOKESIA_MANIFEST,
-        )
-        self.write(
-            "examples/esp-idf/11_esp_brookesia_phone/components/"
-            "brookesia_core/systems/speaker/idf_component.yml",
-            BROOKESIA_MANIFEST,
-        )
-        self.write(
-            "examples/esp-idf/04_wifistation/main/idf_component.yml",
-            WIFI_MANIFEST,
-        )
-        self.write(
-            "examples/esp-idf/10_mp4_player/main/idf_component.yml",
-            MP4_AUDIO_MANIFEST,
-        )
-        for name in ("07_a", "08_b", "09_c", "10_d", "11_e", "12_f"):
-            root = f"examples/esp-idf/{name}/components/esp_lcd_hx8394"
-            self.write(f"{root}/esp_lcd_hx8394.c", HX_SOURCE)
+        self.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/Kconfig", KCONFIG)
+        self.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/idf_component.yml", BROOKESIA_MANIFEST)
+        self.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/systems/speaker/idf_component.yml", BROOKESIA_MANIFEST)
+        self.write(CONTRACTS.WIFI_MANIFEST.as_posix(), WIFI_MANIFEST)
+        self.write(CONTRACTS.MP4_AUDIO_MANIFEST.as_posix(), MP4_AUDIO_MANIFEST)
+        for project in CONTRACTS.ALL_PROJECTS[:6]:
             self.write(
-                f"{root}/include/esp_lcd_hx8394.h",
-                "#define HX8394_DPI_COLOR_FIELD pixel_format\n",
+                f"examples/esp-idf/{project}/sdkconfig.defaults",
+                REVISION_DEFAULTS,
             )
-            self.write(f"{root}/idf_component.yml", "version: 1.0.3\n")
-            self.write(f"{root}/license.txt", "MIT\n")
-            self.write(f"{root}/README.md", "# HX8394\n")
-        for relative in CONTRACTS.PRODUCT_BSP_HX8394_MANIFESTS:
-            self.write(relative.as_posix(), PRODUCT_BSP_MANIFEST)
+        for project, manifest in zip(CONTRACTS.DISPLAY_PROJECTS, CONTRACTS.MAIN_MANIFESTS):
+            dependencies = (
+                "dependencies:\n"
+                + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH)
+                + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH)
+            )
+            if project == "10_mp4_player":
+                dependencies += "  espressif/esp_audio_codec:\n    version: \"2.5.0\"\n"
+            self.write(manifest.as_posix(), dependencies)
+            self.write(f"examples/esp-idf/{project}/sdkconfig.defaults", REVISION_DEFAULTS)
+        self.write("examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults.esp32p4", "CONFIG_COMPILER_OPTIMIZATION_PERF=y\n")
+        self.write("examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4", REVISION_DEFAULTS)
+        for relative in CONTRACTS.BSP_EXTRA_MANIFESTS:
+            self.write(relative.as_posix(), "dependencies:\n  waveshare/esp32_p4_wifi6_touch_lcd_5:\n    version: \"^1.0.1\"\n")
 
     def close(self) -> None:
         self.tempdir.cleanup()
@@ -141,76 +121,41 @@ class ComponentContractTests(unittest.TestCase):
         self.assertEqual(self.repo.codes(), set())
 
     def test_exposed_ai_option_is_rejected(self) -> None:
-        self.repo.write(
-            "examples/esp-idf/11_esp_brookesia_phone/components/"
-            "brookesia_core/Kconfig",
-            KCONFIG.replace("bool\n", 'bool "AI Framework"\n', 1),
-        )
+        self.repo.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/Kconfig", KCONFIG.replace("bool\n", 'bool "AI Framework"\n', 1))
         self.assertIn("BROOKESIA_AI_OPTION_EXPOSED", self.repo.codes())
 
     def test_unbounded_boost_is_rejected(self) -> None:
-        self.repo.write(
-            "examples/esp-idf/11_esp_brookesia_phone/components/"
-            "brookesia_core/idf_component.yml",
-            BROOKESIA_MANIFEST.replace('"0.3.*"', '"*"'),
-        )
+        self.repo.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/idf_component.yml", BROOKESIA_MANIFEST.replace('"0.3.*"', '"*"'))
         self.assertIn("BROOKESIA_BOOST_RANGE", self.repo.codes())
 
-    def test_missing_idf6_boost_bridge_is_rejected(self) -> None:
-        self.repo.write(
-            "examples/esp-idf/11_esp_brookesia_phone/components/"
-            "brookesia_core/systems/speaker/idf_component.yml",
-            BROOKESIA_MANIFEST.replace('"0.6.0"', '"0.3.*"'),
-        )
-        self.assertIn("BROOKESIA_BOOST_RANGE", self.repo.codes())
+    def test_wrong_git_pin_is_rejected(self) -> None:
+        relative = CONTRACTS.MAIN_MANIFESTS[0]
+        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH).replace(CONTRACTS.COMPONENT_REVISION, "a" * 40) + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH))
+        self.assertIn("MANAGED_COMPONENT_GIT_PIN", self.repo.codes())
 
-    def test_copy_drift_is_rejected(self) -> None:
-        self.repo.write(
-            "examples/esp-idf/12_f/components/esp_lcd_hx8394/"
-            "include/esp_lcd_hx8394.h",
-            "#define HX8394_DPI_COLOR_FIELD in_color_format\n",
-        )
-        self.assertIn("HX8394_COPY_DRIFT", self.repo.codes())
+    def test_local_component_is_rejected(self) -> None:
+        path = self.repo.root / "examples/esp-idf/07_Displaycolorbar/components/esp_lcd_hx8394"
+        path.mkdir(parents=True)
+        self.assertIn("LOCAL_MANAGED_COMPONENT_REMAINS", self.repo.codes())
 
-    def test_shared_file_missing_from_every_copy_is_rejected(self) -> None:
-        for name in ("07_a", "08_b", "09_c", "10_d", "11_e", "12_f"):
-            (
-                self.repo.root
-                / f"examples/esp-idf/{name}/components/esp_lcd_hx8394/README.md"
-            ).unlink()
-        self.assertIn("HX8394_SHARED_FILE_MISSING", self.repo.codes())
+    def test_bsp_extra_wildcard_is_rejected(self) -> None:
+        relative = CONTRACTS.BSP_EXTRA_MANIFESTS[0]
+        self.repo.write(relative.as_posix(), "dependencies:\n  waveshare/esp32_p4_wifi6_touch_lcd_5:\n    version: \"*\"\n")
+        self.assertIn("BSP_EXTRA_BSP_COMPATIBILITY", self.repo.codes())
 
-    def test_active_i2c_side_effect_is_rejected(self) -> None:
-        changed = HX_SOURCE.replace(
-            "// i2c_bus_write_bytes", "i2c_bus_write_bytes"
-        )
-        for name in ("07_a", "08_b", "09_c", "10_d", "11_e", "12_f"):
-            self.repo.write(
-                f"examples/esp-idf/{name}/components/esp_lcd_hx8394/"
-                "esp_lcd_hx8394.c",
-                changed,
-            )
-        self.assertIn("HX8394_UNSCOPED_I2C_SIDE_EFFECT", self.repo.codes())
+    def test_obsolete_revision_symbol_is_rejected(self) -> None:
+        relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults"
+        self.repo.write(relative, REVISION_DEFAULTS.replace("REV_MIN_100", "REV_MIN_1"))
+        self.assertIn("P4_REVISION_ONE_SYMBOL", self.repo.codes())
+
+    def test_missing_pre_v3_default_is_rejected(self) -> None:
+        relative = "examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4"
+        self.repo.write(relative, "CONFIG_IDF_TARGET=\"esp32p4\"\n")
+        self.assertIn("P4_PRE_V3_REVISION_DEFAULT", self.repo.codes())
 
     def test_floating_mp4_audio_codec_is_rejected(self) -> None:
-        self.repo.write(
-            "examples/esp-idf/10_mp4_player/main/idf_component.yml",
-            MP4_AUDIO_MANIFEST.replace('"2.5.0"', '"^2.3.0"'),
-        )
+        self.repo.write(CONTRACTS.MP4_AUDIO_MANIFEST.as_posix(), MP4_AUDIO_MANIFEST.replace('"2.5.0"', '"^2.3.0"'))
         self.assertIn("MP4_AUDIO_CODEC_VERSION", self.repo.codes())
-
-    def test_floating_product_bsp_hx8394_dependency_is_rejected(self) -> None:
-        relative = CONTRACTS.PRODUCT_BSP_HX8394_MANIFESTS[0]
-        self.repo.write(
-            relative.as_posix(),
-            PRODUCT_BSP_MANIFEST.replace("'^1.0.3'", "'*'"),
-        )
-        self.assertIn("HX8394_PRODUCT_BSP_VERSION", self.repo.codes())
-
-    def test_missing_product_bsp_hx8394_dependency_is_rejected(self) -> None:
-        relative = CONTRACTS.PRODUCT_BSP_HX8394_MANIFESTS[0]
-        self.repo.write(relative.as_posix(), "dependencies:\n  idf: '>=5.4'\n")
-        self.assertIn("HX8394_PRODUCT_BSP_DEPENDENCY_MISSING", self.repo.codes())
 
 
 if __name__ == "__main__":

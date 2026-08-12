@@ -40,7 +40,7 @@
 | 摄像头 | 2-lane MIPI-CSI 接口，可选配 OV5647 摄像头 |
 | USB | USB 转 UART 和 USB OTG 2.0 High Speed Type-C 接口 |
 | 扩展接口 | 40PIN GPIO 接口，可兼容部分树莓派 HAT；可能需要合适的排针转接 |
-| 板级支持 | 示例内置本地 BSP 组件：`esp32_p4_wifi6_touch_lcd_5` |
+| 板级支持 | LCD5 BSP 与 HX8394 组件使用临时精确上游 Git 固定版本 |
 | 硬件文件 | [产品原理图](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 完整的产品规格、接口和硬件使用说明请参阅
@@ -59,6 +59,11 @@
    ```
 
 完整的环境配置、连接方法和固件烧录步骤请参阅官方产品文档。
+
+示例默认配置选择 ESP32-P4 revision-1.3/pre-v3 配置。显示示例 07–12 临时将 LCD5 BSP 和
+HX8394 组件固定到上游提交 `7580ddc989c526678bd7364ece19bfdf1a2745c9`（上游 PR #192）；
+这并非组件 registry 发布或合并声明。独立 HX8394 默认配置会发送 I2C 命令序列，而 LCD5 BSP
+为本开发板选择跳过该行为。依赖显示行为或变更固定版本前，必须在目标开发板上完成 HIL 验证。
 
 > [!NOTE]
 > 无线示例使用板载 ESP32-C6 协处理器。更新任一侧时，请保持 ESP32-P4 主机组件
@@ -95,7 +100,8 @@
 情况下均可见。详情请参阅 [CI 发现与路由](docs/CI_ZH.md)。
 
 CI 只验证精确 Pull Request head SHA 的编译兼容性；硬件行为仍需结合开发板、原理图和
-产品文档进行验证。
+产品文档进行验证。仓库没有受维护的 revision-3 产品固件源码，因此本次示例迁移不包含按
+revision 区分的产品固件任务、artifact 和烧录器探测。
 
 ## 🗂️ 仓库结构
 

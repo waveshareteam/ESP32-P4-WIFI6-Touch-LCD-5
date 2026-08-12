@@ -1,5 +1,0 @@
-## IDF Component Manager Manifest File
-dependencies:
-  esp_lcd_hx8394:
-    version: "*"
-    path: "../../../esp_lcd_hx8394"

@@ -41,7 +41,7 @@ multimedia, edge-computing, and connected-device applications.
 | Camera | 2-lane MIPI-CSI interface with optional OV5647 camera |
 | USB | USB-to-UART and USB OTG 2.0 High Speed Type-C ports |
 | Expansion | 40-pin GPIO header compatible with selected Raspberry Pi HATs; a suitable pin-header adapter may be required |
-| Board support | Example-local BSP component: `esp32_p4_wifi6_touch_lcd_5` |
+| Board support | Temporary exact upstream Git pin for the LCD5 BSP and HX8394 component |
 | Hardware files | [Schematic](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 For complete product specifications, interfaces, and hardware instructions, see the
@@ -61,6 +61,14 @@ For complete product specifications, interfaces, and hardware instructions, see 
 
 The official product documentation contains the complete setup, connection, and
 firmware flashing instructions.
+
+The example defaults select the revision-1.3/pre-v3 ESP32-P4 profile. Display
+examples 07–12 temporarily pin the LCD5 BSP and HX8394 component to upstream
+commit `7580ddc989c526678bd7364ece19bfdf1a2745c9` (upstream PR #192); this is
+not a component-registry release or merge claim. The standalone HX8394 default
+sends its I2C command sequence, while the LCD5 BSP selects the board-specific
+skip behavior. HIL on the target board is required before relying on display
+behavior or changing that pin.
 
 > [!NOTE]
 > Wireless examples use the onboard ESP32-C6 coprocessor. Keep the ESP32-P4 host
@@ -100,7 +108,9 @@ every case. See [CI discovery and routing](docs/CI.md).
 
 CI verifies compile compatibility for the exact pull-request head SHA; hardware
 behavior still requires validation on the board against the schematic and
-product documentation.
+product documentation. The repository has no maintained revision-3 product
+firmware source, so revision-specific product-firmware jobs, artifacts, and
+flasher probes are not included in this example migration.
 
 ## 🗂️ Repository Layout
 

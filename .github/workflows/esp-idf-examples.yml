@@ -152,12 +152,13 @@ jobs:
             --project "${{ matrix.example }}" \
             --build-dir "${{ matrix.example }}/build" \
             --framework-version "${{ matrix.idf_version }}" \
+            --board-profile rev1_3 \
             --output-dir release-artifacts
 
       - name: Upload CI firmware bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: firmware-esp-idf-${{ matrix.project_slug }}-${{ matrix.idf_version }}
+          name: firmware-esp-idf-${{ matrix.project_slug }}-${{ matrix.idf_version }}-rev1_3
           path: release-artifacts/*.zip
           if-no-files-found: error
           retention-days: 14

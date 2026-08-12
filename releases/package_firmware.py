@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 import re
-import shlex
 import zipfile
 from pathlib import Path, PurePath, PureWindowsPath
 
@@ -27,6 +26,16 @@ WRITE_FLASH_OPTIONS = {
 }
 SAFE_BEFORE = {"default_reset", "no_reset", "default-reset", "no-reset"}
 SAFE_AFTER = {"hard_reset", "no_reset", "hard-reset", "no-reset"}
+BOARD_PROFILES = {
+    "rev1_3": {
+        "minimum": "1.0",
+        "maximum_exclusive": "3.0",
+        "symbols": {
+            "CONFIG_ESP32P4_SELECTS_REV_LESS_V3": "y",
+            "CONFIG_ESP32P4_REV_MIN_100": "y",
+        },
+    },
+}
 
 
 def slugify(value: str) -> str:
@@ -90,6 +99,43 @@ def manifest_git_sha() -> str:
     return value.lower()
 
 
+def board_profile(value: str) -> str:
+    if value not in BOARD_PROFILES:
+        raise ValueError(f"unsupported board profile: {value}")
+    return value
+
+
+def sdkconfig_values(build_dir: Path) -> dict[str, str]:
+    """Read generated ESP-IDF configuration, never source defaults."""
+    json_path = build_dir / "config" / "sdkconfig.json"
+    if json_path.is_file():
+        raw = json.loads(json_path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError("generated sdkconfig.json must contain an object")
+        return {
+            str(key) if str(key).startswith("CONFIG_") else f"CONFIG_{key}": "y" if value is True else "n" if value is False else str(value)
+            for key, value in raw.items()
+        }
+    for candidate in (build_dir / "sdkconfig", build_dir / "config" / "sdkconfig"):
+        if candidate.is_file():
+            values: dict[str, str] = {}
+            for line in candidate.read_text(encoding="utf-8").splitlines():
+                if line.startswith("# CONFIG_") and line.endswith(" is not set"):
+                    values[line[2:-11]] = "n"
+                elif line.startswith("CONFIG_") and "=" in line:
+                    key, value = line.split("=", 1)
+                    values[key] = value
+            return values
+    raise ValueError("ESP-IDF build configuration is missing (expected config/sdkconfig.json or sdkconfig)")
+
+
+def validate_idf_profile(build_dir: Path, profile: str) -> None:
+    values = sdkconfig_values(build_dir)
+    for symbol, expected in BOARD_PROFILES[profile]["symbols"].items():
+        if values.get(symbol) != expected:
+            raise ValueError(f"ESP-IDF build configuration does not match {profile}: {symbol}={expected}")
+
+
 def archive_name(source: Path, used: set[str]) -> str:
     if source.suffix.lower() != ".bin":
         raise ValueError("ESP-IDF flasher binary must use a .bin suffix")
@@ -139,30 +185,10 @@ def parse_extra_esptool_args(raw: object) -> dict[str, object]:
     return {"chip": CHIP, "before": normalized["before"], "after": normalized["after"], "stub": normalized["stub"]}
 
 
-def write_text(archive: zipfile.ZipFile, name: str, text: str, executable: bool = False) -> None:
-    info = zipfile.ZipInfo(name)
-    info.external_attr = (0o755 if executable else 0o644) << 16
-    archive.writestr(info, text.encode("utf-8"))
-
-
-def make_scripts(files: list[dict[str, object]], extra: dict[str, object], write_args: list[dict[str, str]]) -> tuple[str, str, str]:
-    pairs = [(str(item["offset"]), str(item["archive_path"])) for item in files]
-    global_args = ["--chip", CHIP, "--baud", str(DEFAULT_BAUD), "--before", str(extra["before"]), "--after", str(extra["after"])]
-    if not bool(extra["stub"]):
-        global_args.append("--no-stub")
-    write_tokens = [token for item in write_args for token in (item["option"], item["value"])]
-    display = "python -m esptool --port PORT " + " ".join(global_args) + " write_flash " + " ".join(write_tokens) + " " + " ".join(
-        f"{offset} {shlex.quote(path)}" for offset, path in pairs
-    )
-    shell_pairs = " ".join(f'{offset} "$SCRIPT_DIR/{path}"' for offset, path in pairs)
-    batch_pairs = " ".join(f'{offset} "%~dp0{path.replace("/", chr(92))}"' for offset, path in pairs)
-    shell = "#!/usr/bin/env sh\nset -eu\nif [ \"$#\" -ne 1 ]; then echo \"Usage: $0 PORT\" >&2; exit 2; fi\nPORT=$1\nSCRIPT_DIR=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)\n" + "python -m esptool --port \"$PORT\" " + " ".join(global_args) + " write_flash " + " ".join(write_tokens) + f" {shell_pairs}\n"
-    batch = "@echo off\r\nif \"%~1\"==\"\" (echo Usage: %~nx0 COMx & exit /b 2)\r\necho %~1| findstr /r /i /x \"COM[0-9][0-9]*\" >nul || (echo Usage: %~nx0 COMx & exit /b 2)\r\nset \"PORT=%~1\"\r\n" + "python -m esptool --port \"%PORT%\" " + " ".join(global_args) + " write_flash " + " ".join(write_tokens) + f" {batch_pairs}\r\nif errorlevel 1 exit /b %errorlevel%\r\n"
-    return display, shell, batch
-
-
-def package_esp_idf(project: Path, build_dir: Path, framework_version: str, output_dir: Path) -> Path:
+def package_esp_idf(project: Path, build_dir: Path, framework_version: str, output_dir: Path, profile: str) -> Path:
     source_project = relative_source_project(project)
+    profile = board_profile(profile)
+    validate_idf_profile(build_dir, profile)
     args_path = build_dir / "flasher_args.json"
     if not args_path.is_file():
         raise FileNotFoundError(f"ESP-IDF flasher arguments not found: {args_path}")
@@ -178,6 +204,8 @@ def package_esp_idf(project: Path, build_dir: Path, framework_version: str, outp
     records: list[dict[str, object]] = []
     sources: list[tuple[Path, str]] = []
     for raw_offset, raw_path in flash_files.items():
+        if isinstance(raw_path, str) and "esp32c6" in raw_path.casefold():
+            raise ValueError("ESP32-P4 CI packages cannot include an ESP32-C6 flash image")
         offset = parse_offset(raw_offset)
         if offset in used_offsets:
             raise ValueError("flasher_args.json contains duplicate flash offsets")
@@ -193,29 +221,32 @@ def package_esp_idf(project: Path, build_dir: Path, framework_version: str, outp
         sources.append((source, name))
     validate_ranges(records)
     records.sort(key=lambda item: int(item["offset_value"]))
-    display, shell, batch = make_scripts(records, extra_args, write_args)
     for record in records:
         record.pop("offset_value")
     manifest = {
         "schema_version": 1,
         "board": BOARD,
         "chip": CHIP,
+        "board_profile": profile,
+        "chip_revision": {
+            "minimum": BOARD_PROFILES[profile]["minimum"],
+            "maximum_exclusive": BOARD_PROFILES[profile]["maximum_exclusive"],
+        },
+        "c6_firmware_included": False,
         "framework": "esp-idf",
         "framework_version": framework_version,
         "source_project": source_project,
         "git_sha": manifest_git_sha(),
-        "flash": {"baud": DEFAULT_BAUD, "flash_limit_bytes": FLASH_LIMIT_BYTES, "extra_esptool_args": extra_args, "write_flash_args": write_args, "command": display, "require_hash_verification": True},
+        "flash": {"baud": DEFAULT_BAUD, "flash_limit_bytes": FLASH_LIMIT_BYTES, "extra_esptool_args": extra_args, "write_flash_args": write_args, "require_hash_verification": True},
         "files": records,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
-    output = output_dir / f"firmware-{slugify(source_project.split('/')[-1])}-{slugify(framework_version)}.zip"
+    output = output_dir / f"firmware-{slugify(source_project.split('/')[-1])}-{slugify(framework_version)}-{profile}.zip"
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for source, name in sources:
             archive.write(source, name)
         archive.write(args_path, "metadata/flasher_args.json")
-        write_text(archive, "manifest.json", json.dumps(manifest, indent=2) + "\n")
-        write_text(archive, "flash.sh", shell, executable=True)
-        write_text(archive, "flash.bat", batch)
+        archive.writestr("manifest.json", json.dumps(manifest, indent=2) + "\n")
     return output
 
 
@@ -224,9 +255,10 @@ def main() -> int:
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--framework-version", required=True)
+    parser.add_argument("--board-profile", choices=tuple(BOARD_PROFILES), required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    print(package_esp_idf(args.project, args.build_dir, args.framework_version, args.output_dir).as_posix())
+    print(package_esp_idf(args.project, args.build_dir, args.framework_version, args.output_dir, args.board_profile).as_posix())
     return 0
 
 

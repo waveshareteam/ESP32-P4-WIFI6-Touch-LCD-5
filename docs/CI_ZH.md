@@ -16,7 +16,8 @@ ESP-IDF 工作流验证 [examples/esp-idf](../examples/esp-idf/) 直属的 12 �
 | ESP-IDF 6.0 | v6.0.2 | 12 | 12 |
 
 更新工作流时需重新核对这些精确标签。构建成功只证明对应提交能够编译，不代表硬件行为
-或出厂固件兼容性已经得到验证。
+或出厂固件兼容性已经得到验证。显示、触摸、音频、摄像头、无线和烧录行为必须在目标开发板
+上完成 HIL 验证。
 
 ## 变更文件路由
 
@@ -53,16 +54,32 @@ Git diff 决定。
 路由、Markdown 和组件策略辅助脚本均配有合成测试，覆盖文档、直接源码、共享输入、
 固件、重命名/删除、未知路径及不完整 diff。
 
+## 托管组件固定版本与 revision 默认配置
+
+显示示例 07–12 为 LCD5 BSP 和 HX8394 组件使用临时精确 Git 固定版本：上游提交
+`7580ddc989c526678bd7364ece19bfdf1a2745c9`（已在上游 PR #192 审查）。这并非 registry
+发布或合并声明。其默认配置选择 revision-1.3/pre-v3 产品配置；仓库没有受维护的产品固件源码，
+因此不包含按 revision 区分的产品固件任务。
+
+示例固件包默认使用 `rev1_3`（pre-v3）配置。仓库中刻意没有 `rev3_x` 产品 artifact：
+尚未指定受维护的产品固件源码。
+
 ## CI 固件包与人工硬件验证
 
 每个必需的 ESP-IDF 构建还会创建一个名为
-`firmware-esp-idf-<project-slug>-<version>` 的 artifact。12 个直属工程乘以两个
+`firmware-esp-idf-<project-slug>-<version>-rev1_3` 的 artifact。12 个直属工程乘以两个
 ESP-IDF 版本，共得到 24 个可独立追溯的固件包。包由该构建真实的
 `flasher_args.json` 生成，保留实际 offset，不猜测固定的 ESP32-P4 offset；其中包含
-`bin/**`、`manifest.json`、`metadata/flasher_args.json`、`flash.sh` 与 `flash.bat`。
+`bin/**`、`manifest.json` 与 `metadata/flasher_args.json`。
 包会将构建已验证的 flash mode、size、freq、reset 和 stub 设置作为结构化 manifest 数据
-保留，并用于每个生成的烧录命令；未知或不安全的 esptool 参数会被拒绝。包内的
-`flash.sh` 和 `flash.bat` 必须接收一个显式端口参数（`PORT` 或 `COMx`），绝不自动选择设备。
+保留；未知或不安全的 esptool 参数会被拒绝。包内不提供可直接绕过检查的烧录 helper 或命令；
+只能使用仓库根目录的 `Flash-CI-Firmware.cmd` 入口，它会调用受版本控制的 PowerShell
+编排脚本，并要求显式传入 `COMx` 端口。
+打包必须读取实际生成的构建配置（`build/config/sdkconfig.json`，或生成的
+`build/sdkconfig` 回退），并确认 `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y` 与
+`CONFIG_ESP32P4_REV_MIN_100=y`；源码 defaults 不能作为证据。内部 ZIP 文件名和 manifest
+也会包含 `board_profile: rev1_3`、`[1.0, 3.0)` revision 范围以及
+`c6_firmware_included: false`。
 
 人工测试前，请安装 GitHub CLI 和带 esptool 的 Python，并执行 `gh auth login`。在
 干净、非 detached 的分支且恰有一个已打开、非草稿 PR 时，从稳定的 Windows 入口运行：
@@ -74,11 +91,17 @@ Flash-CI-Firmware.cmd -Port COMx [-Baud N]
 ```
 
 `-SelfTest` 与 `-ListOnly` 是离线检查：不会访问 GitHub、串口设备或 artifact。普通模式
-必须显式传入占位符 `COMx`，绝不猜测串口设备。它只接受最终 PR HEAD SHA 的成功工作流运行
-及准确 artifact 名称，校验 manifest 身份、每个相对二进制路径、大小、SHA-256、offset、
-重叠和 32 MiB flash 边界；之后还要求 esptool 成功退出并输出 `Hash of data verified`。
-每次烧录后，用户必须实际检查硬件并输入 `PASS`；进度存放在用户本地应用数据中，final SHA
-改变或保存状态无效时会自动重置。
+必须显式传入占位符 `COMx`，绝不猜测串口设备。它只接受最终 PR HEAD SHA 的成功工作流运行，
+且该运行必须报告完整的 24 个预期、唯一且未过期的 firmware artifact；部分 dispatch 运行
+会被拒绝。随后它只下载选定的准确 artifact，校验 manifest 身份、每个相对二进制路径、大小、
+SHA-256、offset、重叠和 32 MiB flash 边界；之后还要求 esptool 成功退出并输出
+`Hash of data verified`。
+在下载 artifact 或烧录之前，它会执行只读 `esptool chip_id` ESP32-P4 探测（仅在兼容性需要时
+回退到 `chip-id`），解析芯片 revision，并且只允许 `< 3.0` 的 `rev1_3`。芯片 `>= 3.0`
+会映射为 `rev3_x` 并被拒绝，因为没有对应产品 artifact。芯片 revision 检查不能替代
+PCB/电气 revision 确认。每次烧录后，用户必须实际检查硬件并输入 `PASS`；进度按 profile
+隔离地存放在用户本地应用数据中，final SHA、选定 workflow run、profile 改变、保存状态截断/格式错误
+或旧 schema 时会自动重置。状态写入会先在同一目录创建临时文件，再原子替换或移动到状态文件。
 
 这些 CI 固件包是测试输出，不是仓库内的出厂固件。CI 构建和完整性门禁不代表已完成物理
 测试；24 项硬件验证仍须由用户逐项执行。
