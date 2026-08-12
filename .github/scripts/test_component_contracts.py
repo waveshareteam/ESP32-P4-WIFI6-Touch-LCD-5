@@ -96,7 +96,15 @@ class ContractRepository:
         self.write("examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults.esp32p4", "CONFIG_COMPILER_OPTIMIZATION_PERF=y\n")
         self.write("examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4", REVISION_DEFAULTS)
         for relative in CONTRACTS.BSP_EXTRA_MANIFESTS:
-            self.write(relative.as_posix(), "dependencies:\n  waveshare/esp32_p4_wifi6_touch_lcd_5:\n    version: \"^1.0.1\"\n")
+            self.write(
+                relative.as_posix(),
+                "dependencies:\n"
+                + git_dependency(
+                    CONTRACTS.BSP_COMPONENT,
+                    CONTRACTS.BSP_PATH,
+                    CONTRACTS.BSP_COMPONENT_REVISION,
+                ),
+            )
 
     def close(self) -> None:
         self.tempdir.cleanup()
@@ -149,10 +157,10 @@ class ComponentContractTests(unittest.TestCase):
         path.mkdir(parents=True)
         self.assertIn("LOCAL_MANAGED_COMPONENT_REMAINS", self.repo.codes())
 
-    def test_bsp_extra_wildcard_is_rejected(self) -> None:
+    def test_bsp_extra_registry_dependency_is_rejected(self) -> None:
         relative = CONTRACTS.BSP_EXTRA_MANIFESTS[0]
-        self.repo.write(relative.as_posix(), "dependencies:\n  waveshare/esp32_p4_wifi6_touch_lcd_5:\n    version: \"*\"\n")
-        self.assertIn("BSP_EXTRA_BSP_COMPATIBILITY", self.repo.codes())
+        self.repo.write(relative.as_posix(), "dependencies:\n  waveshare/esp32_p4_wifi6_touch_lcd_5:\n    version: \"^1.0.1\"\n")
+        self.assertIn("MANAGED_COMPONENT_GIT_PIN", self.repo.codes())
 
     def test_obsolete_revision_symbol_is_rejected(self) -> None:
         relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults"

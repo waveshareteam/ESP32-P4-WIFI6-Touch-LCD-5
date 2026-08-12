@@ -137,11 +137,15 @@ def check_managed_components(repo: Path) -> list[Finding]:
         findings.extend(check_git_dependency(relative, manifest, BSP_COMPONENT, BSP_PATH, BSP_COMPONENT_REVISION))
         findings.extend(check_git_dependency(relative, manifest, HX8394_COMPONENT, HX8394_PATH, HX8394_COMPONENT_REVISION))
     for relative in BSP_EXTRA_MANIFESTS:
-        block = dependency_block(read(repo, relative), BSP_COMPONENT)
-        if not block or 'version: "^1.0.1"' not in block:
-            findings.append(Finding(relative.as_posix(), "BSP_EXTRA_BSP_COMPATIBILITY", "bsp_extra requires BSP compatibility range ^1.0.1"))
-        elif re.search(r"(?m)^\s*(?:git|path|override_path):", block):
-            findings.append(Finding(relative.as_posix(), "BSP_EXTRA_BSP_LOCAL_REFERENCE", "bsp_extra must use the compatible registry dependency, not a local or Git override"))
+        findings.extend(
+            check_git_dependency(
+                relative,
+                read(repo, relative),
+                BSP_COMPONENT,
+                BSP_PATH,
+                BSP_COMPONENT_REVISION,
+            )
+        )
     return findings
 
 
