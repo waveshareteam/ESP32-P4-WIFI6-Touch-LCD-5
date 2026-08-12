@@ -63,9 +63,9 @@ unfamiliar paths, and incomplete diff data.
 
 ## Managed component pin and revision defaults
 
-Display examples 07–12 use temporary exact Git pins for the LCD5 BSP and HX8394
-component at upstream commit `7580ddc989c526678bd7364ece19bfdf1a2745c9`
-(reviewed in upstream PR #192). This is not a registry-release or merge claim.
+Display examples 07–12 use temporary exact Git pins for the LCD5 BSP validation
+head `d9a93c0` and HX8394 component source `fc6e6d2` (reviewed in upstream
+PR #192). Both pins remain temporary until their respective registry releases.
 Their defaults select the revision-1.3/pre-v3 product profile; product-firmware
 revision jobs are not included because this repository has no maintained product
 firmware source.

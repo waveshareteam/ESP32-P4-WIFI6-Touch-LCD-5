@@ -15,11 +15,12 @@ BROOKESIA_SPEAKER_MANIFEST = BROOKESIA_ROOT / "systems/speaker/idf_component.yml
 WIFI_MANIFEST = Path("examples/esp-idf/04_wifistation/main/idf_component.yml")
 MP4_AUDIO_MANIFEST = Path("examples/esp-idf/10_mp4_player/main/idf_component.yml")
 COMPONENT_REPOSITORY = "https://github.com/waveshareteam/Waveshare-ESP32-components.git"
-COMPONENT_REVISION = "7580ddc989c526678bd7364ece19bfdf1a2745c9"
 BSP_COMPONENT = "waveshare/esp32_p4_wifi6_touch_lcd_5"
 BSP_PATH = "bsp/esp32_p4_wifi6_touch_lcd_5"
+BSP_COMPONENT_REVISION = "d9a93c0cf44bc8c39eced92462297262dd93d645"
 HX8394_COMPONENT = "waveshare/esp_lcd_hx8394"
 HX8394_PATH = "display/lcd/esp_lcd_hx8394"
+HX8394_COMPONENT_REVISION = "fc6e6d2d63aa314cdcec2e8912614aacff2fbd6d"
 DISPLAY_PROJECTS = (
     "07_Displaycolorbar",
     "08_lvgl_demo_v9",
@@ -103,7 +104,7 @@ def check_brookesia(repo: Path) -> list[Finding]:
     return findings
 
 
-def check_git_dependency(relative: Path, manifest: str, component: str, path: str) -> list[Finding]:
+def check_git_dependency(relative: Path, manifest: str, component: str, path: str, revision: str) -> list[Finding]:
     findings: list[Finding] = []
     blocks = re.findall(
         rf"(?ms)^  {re.escape(component)}:\s*$"
@@ -113,10 +114,12 @@ def check_git_dependency(relative: Path, manifest: str, component: str, path: st
     if len(blocks) != 1:
         return [Finding(relative.as_posix(), "MANAGED_COMPONENT_DEPENDENCY_COUNT", f"require exactly one {component} dependency")]
     block = blocks[0]
-    required = (f"git: {COMPONENT_REPOSITORY}", f"path: {path}", f'version: "{COMPONENT_REVISION}"')
+    required = (f"git: {COMPONENT_REPOSITORY}", f"path: {path}", f'version: "{revision}"')
     if any(marker not in block for marker in required):
         findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_GIT_PIN", f"require {component} at the exact upstream Git revision"))
-    if re.search(r"(?m)^\s*(?:path|override_path):\s*(?:\.?/?components/|\.)", block):
+    if re.search(r"(?m)^\s*(?:override|override_path):", block):
+        findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_OVERRIDE", "managed component dependency must not use an override"))
+    if re.search(r"(?m)^\s*path:\s*(?:\.?/?components/|\.)", block):
         findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_LOCAL_REFERENCE", "managed component dependency must not use a local path"))
     if re.search(r"(?m)^\s*version:\s*['\"]?\*", block):
         findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_WILDCARD", "managed component dependency must not use a wildcard version"))
@@ -131,8 +134,8 @@ def check_managed_components(repo: Path) -> list[Finding]:
             if (repo / local).exists():
                 findings.append(Finding(local.as_posix(), "LOCAL_MANAGED_COMPONENT_REMAINS", "remove the replaced example-local component directory"))
         manifest = read(repo, relative)
-        findings.extend(check_git_dependency(relative, manifest, BSP_COMPONENT, BSP_PATH))
-        findings.extend(check_git_dependency(relative, manifest, HX8394_COMPONENT, HX8394_PATH))
+        findings.extend(check_git_dependency(relative, manifest, BSP_COMPONENT, BSP_PATH, BSP_COMPONENT_REVISION))
+        findings.extend(check_git_dependency(relative, manifest, HX8394_COMPONENT, HX8394_PATH, HX8394_COMPONENT_REVISION))
     for relative in BSP_EXTRA_MANIFESTS:
         block = dependency_block(read(repo, relative), BSP_COMPONENT)
         if not block or 'version: "^1.0.1"' not in block:

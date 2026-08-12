@@ -3,8 +3,8 @@ dependencies:
   waveshare/esp32_p4_wifi6_touch_lcd_5:
     git: https://github.com/waveshareteam/Waveshare-ESP32-components.git
     path: bsp/esp32_p4_wifi6_touch_lcd_5
-    version: "7580ddc989c526678bd7364ece19bfdf1a2745c9"
+    version: "d9a93c0cf44bc8c39eced92462297262dd93d645"
   waveshare/esp_lcd_hx8394:
     git: https://github.com/waveshareteam/Waveshare-ESP32-components.git
     path: display/lcd/esp_lcd_hx8394
-    version: "7580ddc989c526678bd7364ece19bfdf1a2745c9"
+    version: "fc6e6d2d63aa314cdcec2e8912614aacff2fbd6d"

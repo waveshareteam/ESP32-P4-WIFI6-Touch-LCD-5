@@ -61,11 +61,11 @@ CONFIG_ESP32P4_REV_MIN_100=y
 """
 
 
-def git_dependency(component: str, path: str) -> str:
+def git_dependency(component: str, path: str, revision: str) -> str:
     return f"""  {component}:
     git: {CONTRACTS.COMPONENT_REPOSITORY}
     path: {path}
-    version: "{CONTRACTS.COMPONENT_REVISION}"
+    version: "{revision}"
 """
 
 
@@ -86,8 +86,8 @@ class ContractRepository:
         for project, manifest in zip(CONTRACTS.DISPLAY_PROJECTS, CONTRACTS.MAIN_MANIFESTS):
             dependencies = (
                 "dependencies:\n"
-                + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH)
-                + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH)
+                + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, CONTRACTS.BSP_COMPONENT_REVISION)
+                + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, CONTRACTS.HX8394_COMPONENT_REVISION)
             )
             if project == "10_mp4_player":
                 dependencies += "  espressif/esp_audio_codec:\n    version: \"2.5.0\"\n"
@@ -128,10 +128,21 @@ class ComponentContractTests(unittest.TestCase):
         self.repo.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/idf_component.yml", BROOKESIA_MANIFEST.replace('"0.3.*"', '"*"'))
         self.assertIn("BROOKESIA_BOOST_RANGE", self.repo.codes())
 
-    def test_wrong_git_pin_is_rejected(self) -> None:
+    def test_legacy_shared_git_pin_is_rejected(self) -> None:
         relative = CONTRACTS.MAIN_MANIFESTS[0]
-        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH).replace(CONTRACTS.COMPONENT_REVISION, "a" * 40) + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH))
+        legacy_revision = "7580ddc989c526678bd7364ece19bfdf1a2745c9"
+        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, legacy_revision) + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, legacy_revision))
         self.assertIn("MANAGED_COMPONENT_GIT_PIN", self.repo.codes())
+
+    def test_swapped_git_pins_are_rejected(self) -> None:
+        relative = CONTRACTS.MAIN_MANIFESTS[0]
+        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, CONTRACTS.HX8394_COMPONENT_REVISION) + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, CONTRACTS.BSP_COMPONENT_REVISION))
+        self.assertIn("MANAGED_COMPONENT_GIT_PIN", self.repo.codes())
+
+    def test_git_override_is_rejected(self) -> None:
+        relative = CONTRACTS.MAIN_MANIFESTS[0]
+        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, CONTRACTS.BSP_COMPONENT_REVISION) + "    override_path: ../replacement\n" + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, CONTRACTS.HX8394_COMPONENT_REVISION))
+        self.assertIn("MANAGED_COMPONENT_OVERRIDE", self.repo.codes())
 
     def test_local_component_is_rejected(self) -> None:
         path = self.repo.root / "examples/esp-idf/07_Displaycolorbar/components/esp_lcd_hx8394"
