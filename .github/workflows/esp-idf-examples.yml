@@ -172,7 +172,15 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout validated head for result evaluation
+        if: ${{ needs.validate.result == 'success' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.head_sha }}
+          persist-credentials: false
+
       - name: Require the selected validation
+        if: ${{ always() }}
         shell: bash
         env:
           VALIDATE_RESULT: ${{ needs.validate.result }}

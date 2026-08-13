@@ -178,6 +178,20 @@ class ContractTests(unittest.TestCase):
         )
         self.assertIn("  result:\n", workflow)
         self.assertIn("    needs:\n      - validate\n      - build\n", workflow)
+        result_job = workflow[workflow.index("  result:\n") :]
+        checkout_step = """      - name: Checkout validated head for result evaluation
+        if: ${{ needs.validate.result == 'success' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.head_sha }}
+          persist-credentials: false
+"""
+        helper_step = """      - name: Require the selected validation
+        if: ${{ always() }}
+"""
+        self.assertIn(checkout_step, result_job)
+        self.assertIn(helper_step, result_job)
+        self.assertLess(result_job.index(checkout_step), result_job.index(helper_step))
         self.assertNotIn("release_update", workflow)
         self.assertNotIn("release_authorization", workflow)
         self.assertNotIn("github.event.pull_request.labels", workflow)
