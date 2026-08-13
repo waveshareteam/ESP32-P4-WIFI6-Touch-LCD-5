@@ -37,6 +37,8 @@ LIGHTWEIGHT_POLICY_PATTERNS = (
     ".github/scripts/test_repository_policy.py",
     ".github/scripts/check_component_contracts.py",
     ".github/scripts/test_component_contracts.py",
+    ".github/scripts/evaluate_ci_result.py",
+    ".github/scripts/test_evaluate_ci_result.py",
     "config/markdown-audit.json",
     ".gitignore",
 )

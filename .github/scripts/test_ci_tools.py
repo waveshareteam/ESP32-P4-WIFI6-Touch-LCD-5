@@ -161,6 +161,29 @@ class PackageTests(unittest.TestCase):
 
 
 class ContractTests(unittest.TestCase):
+    def test_release_review_gate_invokes_the_executable_helper_without_bypass(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/esp-idf-examples.yml").read_text(encoding="utf-8")
+        self.assertIn("python .github/scripts/test_evaluate_ci_result.py", workflow)
+        self.assertIn("python .github/scripts/evaluate_ci_result.py", workflow)
+        self.assertIn('--validate-result "$VALIDATE_RESULT"', workflow)
+        self.assertIn('--has-examples "$HAS_EXAMPLES"', workflow)
+        self.assertIn('--build-result "$BUILD_RESULT"', workflow)
+        self.assertIn("RELEASE_REVIEW: ${{ needs.validate.outputs.release_review }}", workflow)
+        self.assertIn('--release-review "$RELEASE_REVIEW"', workflow)
+        self.assertIn('--head-sha "$VALIDATED_HEAD_SHA"', workflow)
+        self.assertIn("if: ${{ always() }}", workflow)
+        self.assertIn(
+            "name: ${{ github.event_name == 'workflow_dispatch' && 'ESP-IDF examples (manual)' || 'ESP-IDF examples' }}",
+            workflow,
+        )
+        self.assertIn("  result:\n", workflow)
+        self.assertIn("    needs:\n      - validate\n      - build\n", workflow)
+        self.assertNotIn("release_update", workflow)
+        self.assertNotIn("release_authorization", workflow)
+        self.assertNotIn("github.event.pull_request.labels", workflow)
+        self.assertNotIn("requested_reviewers", workflow)
+        self.assertNotIn("github.token", workflow)
+
     def test_24_artifacts_match_direct_project_inventory(self) -> None:
         flasher = (REPO_ROOT / "scripts/Flash-CI-Firmware.ps1").read_text(encoding="utf-8")
         direct = sorted(path.name for path in (REPO_ROOT / "examples/esp-idf").iterdir() if (path / "CMakeLists.txt").is_file() and (path / "main").is_dir())

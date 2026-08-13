@@ -34,12 +34,17 @@ are selected from one complete, rename-aware Git diff.
 | Lightweight policy/maintenance helper, its test, Markdown-audit config, or `.gitignore` | None; run the lightweight policy gate with `docs_only=false` |
 | Source or configuration inside one first-party example | That example only |
 | Shared build configuration or the build workflow/discovery helper | All 12 |
-| Firmware documentation, source, binary, or archive | None; report firmware/release scope separately |
+| Firmware documentation or source | None; report firmware/release scope separately |
+| Firmware `.bin` or `.zip` artifact, including a rename or deletion | None; set `release_review=true` and fail the stable example-CI result |
 | Complete but unfamiliar non-document path | All 12 and report the path |
 | Empty, missing, or unreadable diff | Fail the policy job |
 
 Firmware routing never authorizes rebuilding, repackaging, or changing the
-factory image. A binary or archive change requires an explicit release review.
+factory image. This example CI provides no artifact-release bypass: every
+computed `release_review=true` fails the stable `ESP-IDF examples` result, even
+when no example build is selected. A controlled release update requires a
+separate protected process with explicit maintainer scope; this repository does
+not define that process.
 
 ## Manual selection
 
@@ -49,10 +54,14 @@ The workflow dispatch input accepts:
 - a unique example directory name, such as 04_wifistation;
 - a repository-relative example path.
 
+Its aggregate job is named `ESP-IDF examples (manual)` for manual dispatches;
+pull requests and pushes retain `ESP-IDF examples`, so the same SHA cannot get
+indistinguishable aggregate check contexts.
+
 ## Stable results
 
 Every build job checks out the exact pull-request head SHA reported by the
-policy job. The final ESP-IDF examples job remains visible even when a
+policy job. The final ESP-IDF examples aggregate job remains visible even when a
 documentation-only change correctly selects no product builds. New commits in
 the same pull request cancel obsolete runs without affecting other branches or
 release workflows.

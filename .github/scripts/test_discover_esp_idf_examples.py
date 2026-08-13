@@ -195,6 +195,8 @@ class RoutingContractTests(unittest.TestCase):
                     "M\t.github/scripts/test_repository_policy.py",
                     "M\t.github/scripts/check_component_contracts.py",
                     "M\t.github/scripts/test_component_contracts.py",
+                    "M\t.github/scripts/evaluate_ci_result.py",
+                    "M\t.github/scripts/test_evaluate_ci_result.py",
                     "M\tconfig/markdown-audit.json",
                     "M\t.gitignore",
                 )
@@ -221,6 +223,34 @@ class RoutingContractTests(unittest.TestCase):
         self.repo.write("firmware/factory.bin", b"\x00\x01")
         self.repo.commit("firmware image")
         payload = self.repo.route_diff()
+        self.assertEqual(payload["examples"], [])
+        self.assertFalse(payload["docs_only"])
+        self.assertTrue(payload["firmware_changed"])
+        self.assertTrue(payload["release_review"])
+
+    def test_firmware_source_never_selects_examples_or_release_review(self) -> None:
+        self.repo.write("firmware/project/main/app.c", "void app_main(void) {}\n")
+        self.repo.commit("firmware source")
+        payload = self.repo.route_diff()
+        self.assertEqual(payload["examples"], [])
+        self.assertFalse(payload["docs_only"])
+        self.assertTrue(payload["firmware_changed"])
+        self.assertFalse(payload["release_review"])
+
+    def test_firmware_artifact_rename_and_deletion_require_review_without_builds(self) -> None:
+        scope = self.repo.root / "firmware-artifact-scope.txt"
+        scope.write_text(
+            "\n".join(
+                (
+                    "D\tfirmware/obsolete.bin",
+                    "R100\tfirmware/previous.zip\tfirmware/current.zip",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        _, payload = self.repo.route("--changed-files-from", str(scope))
+        assert payload is not None
         self.assertEqual(payload["examples"], [])
         self.assertFalse(payload["docs_only"])
         self.assertTrue(payload["firmware_changed"])

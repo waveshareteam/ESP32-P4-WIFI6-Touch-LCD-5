@@ -54,6 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           python .github/scripts/test_discover_esp_idf_examples.py
+          python .github/scripts/test_evaluate_ci_result.py
           python .github/scripts/test_repository_policy.py
           python .github/scripts/test_component_contracts.py
           python .github/scripts/test_ci_tools.py
@@ -164,7 +165,7 @@ jobs:
           retention-days: 14
 
   result:
-    name: ESP-IDF examples
+    name: ${{ github.event_name == 'workflow_dispatch' && 'ESP-IDF examples (manual)' || 'ESP-IDF examples' }}
     if: ${{ always() }}
     needs:
       - validate
@@ -177,15 +178,13 @@ jobs:
           VALIDATE_RESULT: ${{ needs.validate.result }}
           HAS_EXAMPLES: ${{ needs.validate.outputs.has_examples }}
           BUILD_RESULT: ${{ needs.build.result }}
+          RELEASE_REVIEW: ${{ needs.validate.outputs.release_review }}
           VALIDATED_HEAD_SHA: ${{ needs.validate.outputs.head_sha }}
         run: |
           set -euo pipefail
-          if [[ "$VALIDATE_RESULT" != "success" ]]; then
-            echo "Repository policy validation did not pass." >&2
-            exit 1
-          fi
-          if [[ "$HAS_EXAMPLES" == "true" && "$BUILD_RESULT" != "success" ]]; then
-            echo "One or more required ESP-IDF matrix builds did not pass." >&2
-            exit 1
-          fi
-          echo "Required validation passed for $VALIDATED_HEAD_SHA."
+          python .github/scripts/evaluate_ci_result.py \
+            --validate-result "$VALIDATE_RESULT" \
+            --has-examples "$HAS_EXAMPLES" \
+            --build-result "$BUILD_RESULT" \
+            --release-review "$RELEASE_REVIEW" \
+            --head-sha "$VALIDATED_HEAD_SHA"
