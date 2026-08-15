@@ -60,6 +60,9 @@ enum {
     EPNUM_TOTAL
 };
 
+#define USB_EXTEND_SCREEN_H_RES  720
+#define USB_EXTEND_SCREEN_V_RES  1280
+
 #if CFG_TUD_HID
 #define TUD_HID_REPORT_DESC_TOUCH_SCREEN(report_id, width, height) \
     HID_USAGE_PAGE   ( HID_USAGE_PAGE_DIGITIZER        ),\

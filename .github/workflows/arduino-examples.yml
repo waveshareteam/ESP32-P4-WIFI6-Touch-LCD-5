@@ -1,0 +1,121 @@
+name: Build Arduino Examples
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "all, an example name, or a repo-relative example path"
+        required: false
+        default: "all"
+
+permissions:
+  contents: read
+
+env:
+  ARDUINO_CORE_VERSION: "3.3.11"
+  ARDUINO_CORE_SOURCE_SHA: "189089bb76e74978dc95abebefdad42b0d421ba9"
+  ARDUINO_FQBN: "esp32:esp32:esp32p4:ChipVariant=prev3,PSRAM=enabled,FlashSize=32M,FlashMode=qio,FlashFreq=80,PartitionScheme=app13M_data7M_32MB,UploadMode=default,UploadSpeed=921600"
+
+concurrency:
+  group: arduino-examples-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  discover-arduino:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      count: ${{ steps.discover.outputs.count }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: discover
+        env:
+          SELECTOR: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target || 'all' }}
+        run: |
+          python3 scripts/discover_arduino_examples.py \
+            --selector "$SELECTOR" --core "$ARDUINO_CORE_VERSION" \
+            --fqbn "$ARDUINO_FQBN" --github-output "$GITHUB_OUTPUT"
+
+  build-arduino:
+    needs: discover-arduino
+    if: needs.discover-arduino.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover-arduino.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Arduino CLI
+        shell: bash
+        env:
+          ARDUINO_CLI_VERSION: "1.5.1"
+          ARDUINO_CLI_LINUX_AMD64_SHA256: "28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b"
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/arduino-cli.tar.gz"
+          install_dir="$RUNNER_TEMP/arduino-cli"
+          wget --https-only --tries=3 --output-document "$archive" \
+            "https://github.com/arduino/arduino-cli/releases/download/v${ARDUINO_CLI_VERSION}/arduino-cli_${ARDUINO_CLI_VERSION}_Linux_64bit.tar.gz"
+          echo "${ARDUINO_CLI_LINUX_AMD64_SHA256}  ${archive}" | sha256sum --check --strict
+          mkdir -p "$install_dir"
+          tar -xzf "$archive" --directory "$install_dir" arduino-cli
+          echo "$install_dir" >> "$GITHUB_PATH"
+      - name: Install ESP32 Arduino core
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@${{ matrix.core }}
+      - name: Compile ${{ matrix.path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="${{ matrix.path }}"
+          project_name="$(basename "$project")"
+          test -f "$project/$project_name.ino"
+          test "$(find "$project" -maxdepth 1 -type f -name '*.ino' | wc -l)" -eq 1
+          build_path="build/${{ matrix.name }}-${{ matrix.core }}"
+          arduino-cli compile \
+            --fqbn "${{ matrix.fqbn }}" \
+            --libraries examples/arduino/libraries \
+            --build-path "$build_path" \
+            "$project"
+          test -f "$build_path/flash_args"
+          test -f "$build_path/build.options.json"
+      - name: Package firmware
+        run: |
+          set -euo pipefail
+          artifact_name="ESP32-P4-WIFI6-Touch-LCD-5-${{ matrix.name }}-arduino-${{ matrix.core }}"
+          test "$(git rev-parse --verify HEAD^{commit})" = "${{ github.sha }}"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          python3 releases/package_arduino_firmware.py \
+            --project "${{ matrix.path }}" \
+            --build-dir "build/${{ matrix.name }}-${{ matrix.core }}" \
+            --name "$artifact_name" \
+            --framework-version "${{ matrix.core }}" \
+            --target esp32p4 \
+            --fqbn "${{ matrix.fqbn }}" \
+            --git-sha "${{ github.sha }}" \
+            --output-dir release-artifacts
+          python3 releases/validate_arduino_firmware.py \
+            --archive "release-artifacts/${artifact_name}-segments.zip" \
+            --project "${{ matrix.path }}" \
+            --build-dir "build/${{ matrix.name }}-${{ matrix.core }}" \
+            --name "$artifact_name" \
+            --framework-version "${{ matrix.core }}" \
+            --target esp32p4 \
+            --fqbn "${{ matrix.fqbn }}" \
+            --git-sha "${{ github.sha }}"
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware-arduino-${{ matrix.name }}-${{ matrix.core }}
+          path: release-artifacts/*-segments.zip
+          if-no-files-found: error

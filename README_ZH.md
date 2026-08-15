@@ -11,6 +11,7 @@
     <a href="https://docs.waveshare.net/ESP32-P4-WIFI6-Touch-LCD-5/">📚 产品文档</a> ·
     <a href="firmware/">📦 出厂固件</a> ·
     <a href="examples/esp-idf/">🧩 ESP-IDF 示例</a>
+    <a href="examples/arduino/">🔧 Arduino 示例</a>
   </p>
   <img src="assets/ESP32-P4-WIFI6-Touch-LCD-5-details-1.jpg" alt="微雪 ESP32-P4-WIFI6-Touch-LCD-5" width="500">
 </div>
@@ -69,6 +70,14 @@
 > 无线示例使用板载 ESP32-C6 协处理器。更新任一侧时，请保持 ESP32-P4 主机组件
 > 与 ESP32-C6 从机固件兼容。请参阅
 > [主机/从机兼容性约定](docs/P4_C6_HOSTED_WIFI_ZH.md)。
+
+## 🔧 Arduino 示例
+
+仓库在 [`examples/arduino/`](examples/arduino/) 下提供 9 个 Arduino 草图,覆盖 DSI 显示
+(Arduino_GFX)、GT911 触摸画板、LVGL 9 界面、图形化 Wi-Fi 扫描、ES8311 音频播放、microSD
+存储、OV5647 MIPI-CSI 摄像头预览与交互式 ISP/3A 调参。开发板设置与示例说明见
+[`examples/arduino/README_ZH.md`](examples/arduino/README_ZH.md)。草图基于 Arduino-ESP32
+core `3.3.11`(启用 PSRAM),发布为真实分段包(不含 merged/整片镜像)。
 
 ## 🧪 ESP-IDF 示例
 

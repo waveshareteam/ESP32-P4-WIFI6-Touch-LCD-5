@@ -14,6 +14,12 @@ BROOKESIA_ROOT = Path("examples/esp-idf/11_esp_brookesia_phone/components/brooke
 BROOKESIA_SPEAKER_MANIFEST = BROOKESIA_ROOT / "systems/speaker/idf_component.yml"
 WIFI_MANIFEST = Path("examples/esp-idf/04_wifistation/main/idf_component.yml")
 MP4_AUDIO_MANIFEST = Path("examples/esp-idf/10_mp4_player/main/idf_component.yml")
+VIDEO_DEFAULTS = Path("examples/esp-idf/09_video_lcd_display/sdkconfig.defaults")
+BROOKESIA_MAIN = Path("examples/esp-idf/11_esp_brookesia_phone/main/main.cpp")
+BROOKESIA_DEFAULTS = Path("examples/esp-idf/11_esp_brookesia_phone/sdkconfig.defaults")
+USB_DESCRIPTOR_SOURCE = Path("examples/esp-idf/12_usb_extend_screen/main/tusb/usb_descriptors.c")
+USB_DESCRIPTOR_HEADER = Path("examples/esp-idf/12_usb_extend_screen/main/tusb/usb_descriptors.h")
+USB_APP_MAIN = Path("examples/esp-idf/12_usb_extend_screen/main/usb_extend_screen.c")
 COMPONENT_REPOSITORY = "https://github.com/waveshareteam/Waveshare-ESP32-components.git"
 BSP_COMPONENT = "waveshare/esp32_p4_wifi6_touch_lcd_5"
 BSP_PATH = "bsp/esp32_p4_wifi6_touch_lcd_5"
@@ -182,9 +188,75 @@ def check_mp4_audio_codec(repo: Path) -> list[Finding]:
     return [Finding(MP4_AUDIO_MANIFEST.as_posix(), "MP4_AUDIO_CODEC_VERSION", "ESP32-P4 revision 1/2 compatibility requires esp_audio_codec 2.5.0")]
 
 
+def check_display_resolution_contracts(repo: Path) -> list[Finding]:
+    findings: list[Finding] = []
+
+    video_defaults = read(repo, VIDEO_DEFAULTS)
+    required_video_defaults = (
+        "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X1280_50FPS=y",
+        "CONFIG_CAMERA_OV5647_MIPI_DEFAULT_FMT_RAW8_800X1280_50FPS=y",
+    )
+    if any(
+        not re.search(rf"(?m)^{re.escape(marker)}[ \\t]*$", video_defaults)
+        for marker in required_video_defaults
+    ):
+        findings.append(Finding(VIDEO_DEFAULTS.as_posix(), "OV5647_PORTRAIT_DEFAULT", "require OV5647 800x1280 support and select it as the actual default format"))
+    active_video_defaults = set(re.findall(
+        r"(?m)^(CONFIG_CAMERA_OV5647_MIPI_DEFAULT_FMT_[A-Z0-9_]+)=y[ \\t]*$",
+        video_defaults,
+    ))
+    if active_video_defaults != {"CONFIG_CAMERA_OV5647_MIPI_DEFAULT_FMT_RAW8_800X1280_50FPS"}:
+        findings.append(Finding(VIDEO_DEFAULTS.as_posix(), "OV5647_PORTRAIT_DEFAULT", "do not select a competing OV5647 default format"))
+    if re.search(r"(?m)^CONFIG_CAMERA_OV5647_MIPI_RAW8_800x1280_50FPS=y\s*$", video_defaults):
+        findings.append(Finding(VIDEO_DEFAULTS.as_posix(), "OV5647_LEGACY_FORMAT_SYMBOL", "use the canonical uppercase 800X1280 Kconfig symbol"))
+
+    brookesia_main = read(repo, BROOKESIA_MAIN)
+    if not re.search(
+        r"(?s)else\s+if\s*\(\(BSP_LCD_H_RES\s*==\s*720\)\s*&&\s*"
+        r"\(BSP_LCD_V_RES\s*==\s*1280\)\)\s*\{[^{}]*STYLESHEET_720_1280_DARK[^{}]*\}",
+        brookesia_main,
+    ):
+        findings.append(Finding(BROOKESIA_MAIN.as_posix(), "BROOKESIA_720_1280_STYLESHEET", "activate the bundled 720x1280 stylesheet for the product display"))
+    if "CONFIG_BSP_LCD_TYPE_720_1280_7_INCH_A=y" in read(repo, BROOKESIA_DEFAULTS):
+        findings.append(Finding(BROOKESIA_DEFAULTS.as_posix(), "BROOKESIA_STALE_LCD_PROFILE", "remove the ignored LCD profile symbol from another BSP"))
+
+    usb_header = read(repo, USB_DESCRIPTOR_HEADER)
+    usb_source = read(repo, USB_DESCRIPTOR_SOURCE)
+    usb_main = read(repo, USB_APP_MAIN)
+    resolution_ok = all(
+        re.search(pattern, usb_header)
+        for pattern in (
+            r"(?m)^#define\s+USB_EXTEND_SCREEN_H_RES\s+720\s*$",
+            r"(?m)^#define\s+USB_EXTEND_SCREEN_V_RES\s+1280\s*$",
+        )
+    )
+    hid_order_ok = bool(re.search(
+        r"TUD_HID_REPORT_DESC_TOUCH_SCREEN\s*\(\s*REPORT_ID_TOUCH\s*,\s*"
+        r"USB_EXTEND_SCREEN_H_RES\s*,\s*USB_EXTEND_SCREEN_V_RES\s*\)",
+        usb_source,
+    ))
+    vendor_start = usb_source.find("#define VENDOR_STR")
+    vendor_end = usb_source.find("// array of pointer", vendor_start)
+    vendor_block = usb_source[vendor_start:vendor_end] if vendor_start >= 0 and vendor_end > vendor_start else ""
+    vendor_h = vendor_block.find("STRINGIFY(USB_EXTEND_SCREEN_H_RES)")
+    vendor_x = vendor_block.find('"x"')
+    vendor_v = vendor_block.find("STRINGIFY(USB_EXTEND_SCREEN_V_RES)")
+    vendor_order_ok = 0 <= vendor_h < vendor_x < vendor_v
+    assertions_ok = all(
+        marker in usb_main
+        for marker in (
+            "_Static_assert(USB_EXTEND_SCREEN_H_RES == BSP_LCD_H_RES",
+            "_Static_assert(USB_EXTEND_SCREEN_V_RES == BSP_LCD_V_RES",
+        )
+    )
+    if not (resolution_ok and hid_order_ok and vendor_order_ok and assertions_ok):
+        findings.append(Finding(USB_DESCRIPTOR_SOURCE.as_posix(), "USB_DISPLAY_RESOLUTION", "advertise 720x1280, map HID X/Y in that order, and compile-check the values against the BSP"))
+    return findings
+
+
 def run(repo: Path) -> list[Finding]:
     repo = repo.resolve()
-    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo)})
+    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_display_resolution_contracts(repo)})
 
 
 def main() -> int:

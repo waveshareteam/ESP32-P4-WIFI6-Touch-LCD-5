@@ -33,9 +33,6 @@
 #include "uac_descriptors.h"
 #include "sdkconfig.h"
 
-#define USB_EXTEND_SCREEN_HEIGHT  480
-#define USB_EXTEND_SCREEN_WIDTH   800
-
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
  * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
  *
@@ -87,7 +84,7 @@ uint8_t const *tud_descriptor_device_cb(void)
 // HID Report Descriptor
 //--------------------------------------------------------------------+
 uint8_t const desc_hid_report[] = {
-    TUD_HID_REPORT_DESC_TOUCH_SCREEN(REPORT_ID_TOUCH, USB_EXTEND_SCREEN_HEIGHT, USB_EXTEND_SCREEN_WIDTH),
+    TUD_HID_REPORT_DESC_TOUCH_SCREEN(REPORT_ID_TOUCH, USB_EXTEND_SCREEN_H_RES, USB_EXTEND_SCREEN_V_RES),
 };
 
 uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance)
@@ -141,9 +138,9 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index)
         CONFIG_IDF_TARGET \
         "udisp0_" \
         "R" \
-        STRINGIFY(USB_EXTEND_SCREEN_HEIGHT) \
+        STRINGIFY(USB_EXTEND_SCREEN_H_RES) \
         "x" \
-        STRINGIFY(USB_EXTEND_SCREEN_WIDTH) \
+        STRINGIFY(USB_EXTEND_SCREEN_V_RES) \
         "_" \
         "Ejpg" \
         STRINGIFY(CONFIG_USB_EXYEEND_SCREEN_JEPG_QUALITY) \

@@ -18,6 +18,9 @@
 
 static const char *TAG = "usb_extend_screen";
 
+_Static_assert(USB_EXTEND_SCREEN_H_RES == BSP_LCD_H_RES, "USB display width must match the BSP");
+_Static_assert(USB_EXTEND_SCREEN_V_RES == BSP_LCD_V_RES, "USB display height must match the BSP");
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "USB extend screen example");

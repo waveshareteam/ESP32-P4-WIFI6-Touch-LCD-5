@@ -11,6 +11,7 @@
     <a href="https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5">📚 Documentation</a> ·
     <a href="firmware/">📦 Factory Firmware</a> ·
     <a href="examples/esp-idf/">🧩 ESP-IDF Examples</a>
+    <a href="examples/arduino/">🔧 Arduino Examples</a>
   </p>
   <img src="assets/ESP32-P4-WIFI6-Touch-LCD-5-details-1.jpg" alt="Waveshare ESP32-P4-WIFI6-Touch-LCD-5" width="500">
 </div>
@@ -74,6 +75,16 @@ or changing either pin.
 > Wireless examples use the onboard ESP32-C6 coprocessor. Keep the ESP32-P4 host
 > components and ESP32-C6 slave firmware compatible when changing either side.
 > See the [host/slave compatibility contract](docs/P4_C6_HOSTED_WIFI.md).
+
+## 🔧 Arduino Examples
+
+Nine first-party Arduino sketches are bundled under [`examples/arduino/`](examples/arduino/),
+covering the DSI display (Arduino_GFX), GT911 touch drawing, LVGL 9 UI, a graphical Wi-Fi
+scan, ES8311 audio playback, microSD storage, OV5647 MIPI-CSI camera preview, and an
+interactive camera ISP/3A tuning demo. Board settings and example descriptions are listed in
+[`examples/arduino/README.md`](examples/arduino/README.md). The sketches use the Arduino-ESP32
+core `3.3.11` with PSRAM enabled and are packaged as real offset-addressed segments
+(no merged/whole-flash image).
 
 ## 🧪 ESP-IDF Examples
 
