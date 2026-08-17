@@ -85,10 +85,14 @@ _Static_assert(USB_EXTEND_SCREEN_V_RES == BSP_LCD_V_RES, "height");
 
 def git_dependency(component: str, path: str, revision: str) -> str:
     return f"""  {component}:
-    git: {CONTRACTS.COMPONENT_REPOSITORY}
+    git: https://github.com/waveshareteam/Waveshare-ESP32-components.git
     path: {path}
     version: "{revision}"
 """
+
+
+def registry_dependency(component: str, version: str) -> str:
+    return f'  {component}: "{version}"\n'
 
 
 class ContractRepository:
@@ -108,8 +112,8 @@ class ContractRepository:
         for project, manifest in zip(CONTRACTS.DISPLAY_PROJECTS, CONTRACTS.MAIN_MANIFESTS):
             dependencies = (
                 "dependencies:\n"
-                + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, CONTRACTS.BSP_COMPONENT_REVISION)
-                + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, CONTRACTS.HX8394_COMPONENT_REVISION)
+                + registry_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_COMPONENT_VERSION)
+                + registry_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_COMPONENT_VERSION)
             )
             if project == "10_mp4_player":
                 dependencies += "  espressif/esp_audio_codec:\n    version: \"2.5.0\"\n"
@@ -127,11 +131,7 @@ class ContractRepository:
             self.write(
                 relative.as_posix(),
                 "dependencies:\n"
-                + git_dependency(
-                    CONTRACTS.BSP_COMPONENT,
-                    CONTRACTS.BSP_PATH,
-                    CONTRACTS.BSP_COMPONENT_REVISION,
-                ),
+                + registry_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_COMPONENT_VERSION),
             )
 
     def close(self) -> None:
@@ -167,17 +167,17 @@ class ComponentContractTests(unittest.TestCase):
     def test_legacy_shared_git_pin_is_rejected(self) -> None:
         relative = CONTRACTS.MAIN_MANIFESTS[0]
         legacy_revision = "7580ddc989c526678bd7364ece19bfdf1a2745c9"
-        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, legacy_revision) + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, legacy_revision))
+        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, "bsp/esp32_p4_wifi6_touch_lcd_5", legacy_revision) + registry_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_COMPONENT_VERSION))
         self.assertIn("MANAGED_COMPONENT_GIT_PIN", self.repo.codes())
 
-    def test_swapped_git_pins_are_rejected(self) -> None:
+    def test_swapped_registry_versions_are_rejected(self) -> None:
         relative = CONTRACTS.MAIN_MANIFESTS[0]
-        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, CONTRACTS.HX8394_COMPONENT_REVISION) + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, CONTRACTS.BSP_COMPONENT_REVISION))
-        self.assertIn("MANAGED_COMPONENT_GIT_PIN", self.repo.codes())
+        self.repo.write(relative.as_posix(), "dependencies:\n" + registry_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.HX8394_COMPONENT_VERSION) + registry_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.BSP_COMPONENT_VERSION))
+        self.assertIn("MANAGED_COMPONENT_REGISTRY_VERSION", self.repo.codes())
 
     def test_git_override_is_rejected(self) -> None:
         relative = CONTRACTS.MAIN_MANIFESTS[0]
-        self.repo.write(relative.as_posix(), "dependencies:\n" + git_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_PATH, CONTRACTS.BSP_COMPONENT_REVISION) + "    override_path: ../replacement\n" + git_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_PATH, CONTRACTS.HX8394_COMPONENT_REVISION))
+        self.repo.write(relative.as_posix(), "dependencies:\n" + registry_dependency(CONTRACTS.BSP_COMPONENT, CONTRACTS.BSP_COMPONENT_VERSION) + "    override_path: ../replacement\n" + registry_dependency(CONTRACTS.HX8394_COMPONENT, CONTRACTS.HX8394_COMPONENT_VERSION))
         self.assertIn("MANAGED_COMPONENT_OVERRIDE", self.repo.codes())
 
     def test_local_component_is_rejected(self) -> None:
@@ -185,10 +185,10 @@ class ComponentContractTests(unittest.TestCase):
         path.mkdir(parents=True)
         self.assertIn("LOCAL_MANAGED_COMPONENT_REMAINS", self.repo.codes())
 
-    def test_bsp_extra_registry_dependency_is_rejected(self) -> None:
+    def test_bsp_extra_wrong_version_is_rejected(self) -> None:
         relative = CONTRACTS.BSP_EXTRA_MANIFESTS[0]
-        self.repo.write(relative.as_posix(), "dependencies:\n  waveshare/esp32_p4_wifi6_touch_lcd_5:\n    version: \"^1.0.1\"\n")
-        self.assertIn("MANAGED_COMPONENT_GIT_PIN", self.repo.codes())
+        self.repo.write(relative.as_posix(), "dependencies:\n  waveshare/esp32_p4_wifi6_touch_lcd_5: \"^1.0.1\"\n")
+        self.assertIn("MANAGED_COMPONENT_REGISTRY_VERSION", self.repo.codes())
 
     def test_obsolete_revision_symbol_is_rejected(self) -> None:
         relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults"

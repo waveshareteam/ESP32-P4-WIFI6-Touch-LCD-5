@@ -18,27 +18,25 @@ any migration decision. Their location alone does not make them removable.
 The two `bsp_extra` copies are candidates for a future deduplication, but only
 after their call sites and USB/audio behavior are proven equivalent.
 
-## Temporary managed-component pins
+## Managed component versions
 
 The six display-capable examples no longer carry local
 `esp32_p4_wifi6_touch_lcd_5` BSP or `esp_lcd_hx8394` driver directories. Their
-main manifests temporarily pin the BSP validation head and HX8394 component
-source from the Waveshare component repository, reviewed in upstream
-PR [#192](https://github.com/waveshareteam/Waveshare-ESP32-components/pull/192):
+main manifests resolve both components from the ESP Component Registry
+(waveshare namespace):
 
-- BSP validation head [`d9a93c0`](https://github.com/waveshareteam/Waveshare-ESP32-components/commit/d9a93c0cf44bc8c39eced92462297262dd93d645), path: `bsp/esp32_p4_wifi6_touch_lcd_5`.
-- HX8394 source [`fc6e6d2`](https://github.com/waveshareteam/Waveshare-ESP32-components/commit/fc6e6d2d63aa314cdcec2e8912614aacff2fbd6d), path: `display/lcd/esp_lcd_hx8394`.
+- BSP [`esp32_p4_wifi6_touch_lcd_5`](https://components.espressif.com/components/waveshare/esp32_p4_wifi6_touch_lcd_5) `^1.0.3`.
+- HX8394 driver [`esp_lcd_hx8394`](https://components.espressif.com/components/waveshare/esp_lcd_hx8394) `^2.1.0`.
 
-These exact source pins remain temporary until their respective registry
-releases. The `bsp_extra` wrappers in examples 08 and 12 retain their compatible
-BSP range `^1.0.1`; they do not override the direct example pin.
+The `bsp_extra` wrappers in examples 08 and 12 use the same BSP range `^1.0.3`;
+they do not override the direct example dependency.
 
 ## HX8394 initialization boundary
 
-The pinned HX8394 source's standalone default sends its I2C command
-sequence. The LCD5 BSP selects the skip behavior for this board integration.
-This source-level contract does not prove panel behavior: HIL validation on the
-target board is required before changing or promoting either pin.
+The HX8394 driver's standalone default sends its I2C command sequence. The
+LCD5 BSP selects the skip behavior for this board integration. This source-level
+contract does not prove panel behavior: HIL validation on the target board is
+required before changing or promoting either version.
 
 ## ESP32-P4 revision defaults
 

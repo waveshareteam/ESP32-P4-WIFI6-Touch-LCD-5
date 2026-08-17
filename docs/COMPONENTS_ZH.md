@@ -17,24 +17,23 @@
 
 两份 `bsp_extra` 可作为后续去重候选，但必须先证明其调用点以及 USB/音频行为等价。
 
-## 临时托管组件固定版本
+## 托管组件版本
 
 六个显示相关示例不再携带本地 `esp32_p4_wifi6_touch_lcd_5` BSP 或
-`esp_lcd_hx8394` 驱动目录。它们的主 manifest 临时固定到 Waveshare 组件仓库中、
-在上游 PR [#192](https://github.com/waveshareteam/Waveshare-ESP32-components/pull/192)
-审查的 BSP 验证头和 HX8394 组件源码：
+`esp_lcd_hx8394` 驱动目录。它们的主 manifest 从 ESP Component Registry
+（waveshare 命名空间）解析这两个组件：
 
-- BSP 验证头 [`d9a93c0`](https://github.com/waveshareteam/Waveshare-ESP32-components/commit/d9a93c0cf44bc8c39eced92462297262dd93d645)，路径：`bsp/esp32_p4_wifi6_touch_lcd_5`。
-- HX8394 组件源码 [`fc6e6d2`](https://github.com/waveshareteam/Waveshare-ESP32-components/commit/fc6e6d2d63aa314cdcec2e8912614aacff2fbd6d)，路径：`display/lcd/esp_lcd_hx8394`。
+- BSP [`esp32_p4_wifi6_touch_lcd_5`](https://components.espressif.com/components/waveshare/esp32_p4_wifi6_touch_lcd_5) `^1.0.3`。
+- HX8394 驱动 [`esp_lcd_hx8394`](https://components.espressif.com/components/waveshare/esp_lcd_hx8394) `^2.1.0`。
 
-这些精确源代码固定版本会保持临时状态，直至各自发布到 registry。示例 08 和 12 的 `bsp_extra`
-封装仍保留兼容 BSP 范围 `^1.0.1`，不会覆盖示例中的直接固定版本。
+示例 08 和 12 的 `bsp_extra` 封装使用相同的 BSP 范围 `^1.0.3`，不会覆盖示例中的
+直接依赖。
 
 ## HX8394 初始化边界
 
-固定版本的 HX8394 源码在独立默认配置下会发送 I2C 命令序列；LCD5 BSP 为本开发板集成
-选择跳过该行为。此源代码级约定不等于面板行为已获证明：变更或提升该固定版本前，必须在
-目标开发板上完成 HIL 验证。
+HX8394 驱动在独立默认配置下会发送 I2C 命令序列；LCD5 BSP 为本开发板集成选择跳过
+该行为。此源代码级约定不等于面板行为已获证明：变更或提升任一版本前，必须在目标开发板上
+完成 HIL 验证。
 
 ## ESP32-P4 revision 默认配置
 

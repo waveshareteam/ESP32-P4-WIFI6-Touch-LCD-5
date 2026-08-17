@@ -70,14 +70,13 @@ The routing and Markdown/component-policy helpers have synthetic tests covering
 documentation, direct source, shared inputs, firmware, rename/deletion,
 unfamiliar paths, and incomplete diff data.
 
-## Managed component pin and revision defaults
+## Managed component versions and revision defaults
 
-Display examples 07–12 use temporary exact Git pins for the LCD5 BSP validation
-head `d9a93c0` and HX8394 component source `fc6e6d2` (reviewed in upstream
-PR #192). Both pins remain temporary until their respective registry releases.
-Their defaults select the revision-1.3/pre-v3 product profile; product-firmware
-revision jobs are not included because this repository has no maintained product
-firmware source.
+Display examples 07–12 resolve the LCD5 BSP `^1.0.3` and the HX8394 driver
+`^2.1.0` from the ESP Component Registry (waveshare namespace). Their defaults
+select the revision-1.3/pre-v3 product profile; product-firmware revision jobs
+are not included because this repository has no maintained product firmware
+source.
 
 The example bundles default to the `rev1_3` (pre-v3) profile. A `rev3_x` product
 artifact is intentionally absent: no maintained product-firmware source has

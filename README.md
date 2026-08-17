@@ -64,12 +64,11 @@ The official product documentation contains the complete setup, connection, and
 firmware flashing instructions.
 
 The example defaults select the revision-1.3/pre-v3 ESP32-P4 profile. Display
-examples 07–12 temporarily pin the LCD5 BSP to validation head `d9a93c0` and
-the HX8394 component source to `fc6e6d2` (upstream PR #192); both remain
-temporary until their registry releases. The standalone HX8394 default sends its
-I2C command sequence, while the LCD5 BSP selects the board-specific skip
-behavior. HIL on the target board is required before relying on display behavior
-or changing either pin.
+examples 07–12 resolve the LCD5 BSP `^1.0.3` and the HX8394 driver `^2.1.0`
+from the ESP Component Registry. The standalone HX8394 default sends its I2C
+command sequence, while the LCD5 BSP selects the board-specific skip behavior.
+HIL on the target board is required before relying on display behavior or
+changing either version.
 
 > [!NOTE]
 > Wireless examples use the onboard ESP32-C6 coprocessor. Keep the ESP32-P4 host
