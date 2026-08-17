@@ -3,7 +3,7 @@
 # Schematic-backed hardware validation
 
 This page records the repository cross-check against
-[the included schematic](../schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf).
+[the included schematic](../hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf).
 It is a source/configuration consistency audit, not a board runtime test.
 
 ## Confirmed mappings

@@ -41,8 +41,8 @@
 | 摄像头 | 2-lane MIPI-CSI 接口，可选配 OV5647 摄像头 |
 | USB | USB 转 UART 和 USB OTG 2.0 High Speed Type-C 接口 |
 | 扩展接口 | 40PIN GPIO 接口，可兼容部分树莓派 HAT；可能需要合适的排针转接 |
-| 板级支持 | LCD5 BSP 与 HX8394 组件使用临时精确上游 Git 固定版本 |
-| 硬件文件 | [产品原理图](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
+| 板级支持 | 注册表组件 `waveshare/esp32_p4_wifi6_touch_lcd_5` ^1.0.3 与 `waveshare/esp_lcd_hx8394` ^2.1.0 |
+| 硬件文件 | [产品原理图](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 完整的产品规格、接口和硬件使用说明请参阅
 [官方中文文档](https://docs.waveshare.net/ESP32-P4-WIFI6-Touch-LCD-5/)。
@@ -121,7 +121,7 @@ revision 区分的产品固件任务、artifact 和烧录器探测。
 | [`docs/`](docs/) | CI、组件、硬件和 Hosted Wi-Fi 维护约定 |
 | [`examples/esp-idf/`](examples/esp-idf/) | 第一方 ESP-IDF 工程 |
 | [`firmware/`](firmware/) | 出厂烧录固件 |
-| [`schematic/`](schematic/) | 产品原理图 |
+| [`hardware/schematic/`](hardware/schematic/) | 产品原理图 |
 | [`CONTRIBUTING_ZH.md`](CONTRIBUTING_ZH.md) | 贡献与验证流程 |
 | [`SUPPORT_ZH.md`](SUPPORT_ZH.md) | 支持范围与公开日志隐私说明 |
 | [`LICENSE.txt`](LICENSE.txt) | Apache License 2.0 许可证 |
@@ -137,7 +137,7 @@ revision 区分的产品固件任务、artifact 和烧录器探测。
 
 - [产品页面](https://www.waveshare.net/shop/ESP32-P4-WIFI6-Touch-LCD-5.htm)
 - [产品文档](https://docs.waveshare.net/ESP32-P4-WIFI6-Touch-LCD-5/)
-- [产品原理图](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
+- [产品原理图](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
 - [ESP-IDF 示例](examples/esp-idf/)
 - [仓库文档](docs/README_ZH.md)
 - [CI 发现与路由](docs/CI_ZH.md)
