@@ -78,10 +78,10 @@ or changing either pin.
 
 ## 🔧 Arduino Examples
 
-Nine first-party Arduino sketches are bundled under [`examples/arduino/`](examples/arduino/),
+Ten first-party Arduino sketches are bundled under [`examples/arduino/`](examples/arduino/),
 covering the DSI display (Arduino_GFX), GT911 touch drawing, LVGL 9 UI, a graphical Wi-Fi
-scan, ES8311 audio playback, microSD storage, OV5647 MIPI-CSI camera preview, and an
-interactive camera ISP/3A tuning demo. Board settings and example descriptions are listed in
+scan, ES8311 melody playback, ES7210 microphone capture, microSD storage, OV5647 MIPI-CSI
+camera preview, and an interactive camera ISP/3A tuning demo. Board settings and example descriptions are listed in
 [`examples/arduino/README.md`](examples/arduino/README.md). The sketches use the Arduino-ESP32
 core `3.3.11` with PSRAM enabled and are packaged as real offset-addressed segments
 (no merged/whole-flash image).

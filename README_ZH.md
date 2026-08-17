@@ -73,9 +73,9 @@
 
 ## 🔧 Arduino 示例
 
-仓库在 [`examples/arduino/`](examples/arduino/) 下提供 9 个 Arduino 草图,覆盖 DSI 显示
-(Arduino_GFX)、GT911 触摸画板、LVGL 9 界面、图形化 Wi-Fi 扫描、ES8311 音频播放、microSD
-存储、OV5647 MIPI-CSI 摄像头预览与交互式 ISP/3A 调参。开发板设置与示例说明见
+仓库在 [`examples/arduino/`](examples/arduino/) 下提供 10 个 Arduino 草图,覆盖 DSI 显示
+(Arduino_GFX)、GT911 触摸画板、LVGL 9 界面、图形化 Wi-Fi 扫描、ES8311 旋律播放、
+ES7210 麦克风采集、microSD 存储、OV5647 MIPI-CSI 摄像头预览与交互式 ISP/3A 调参。开发板设置与示例说明见
 [`examples/arduino/README_ZH.md`](examples/arduino/README_ZH.md)。草图基于 Arduino-ESP32
 core `3.3.11`(启用 PSRAM),发布为真实分段包(不含 merged/整片镜像)。
 

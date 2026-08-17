@@ -26,10 +26,18 @@ OV5647 MIPI-CSI 摄像头)的 Arduino 草图与随仓库。
 | `03_Drawing_board` | GT911 五点电容触摸画板 |
 | `04_LVGLV9_Arduino` | LVGL 9 控件界面 + 触摸 |
 | `05_GFX_ESPWiFiAnalyzer` | 图形化 Wi-Fi 扫描(板载 ESP32-C6 协处理器) |
-| `09_Audio_Playback` | ES8311 编解码 I2S 音频播放(实验性) |
-| `08_SD_Card` | microSD SDIO 3.0 读写 |
 | `06_Camera_Preview` | OV5647 MIPI-CSI 摄像头实时上屏 |
 | `07_Camera_ISP_Tuning` | 实时预览 + 串口交互 ISP/3A 调参 |
+| `08_SD_Card` | microSD SDIO 3.0 读写 |
+| `09_Audio_Playback` | ES8311 编解码器以不同频率音色演奏《致爱丽丝》开篇 |
+| `10_Mic_Record` | ES7210 四麦克风采集,串口打印峰值/RMS/抽样数据 |
+
+## 音频说明
+
+`09_Audio_Playback` 通过纯发送 I2S(MCLK 13、BCLK 12、LRCK 10、DOUT 9)驱动
+ES8311 编解码器(I2C 0x18),并经 GPIO 53 使能 2 W 扬声器。`10_Mic_Record` 通过
+纯接收 I2S(DIN 11)以 16 kHz/16 位采集板载 ES7210(I2C 0x40)麦克风,并把帧数据
+打印到串口监视器。
 
 ## 摄像头说明
 

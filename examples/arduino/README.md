@@ -26,10 +26,18 @@ Arduino sketches and bundled libraries for the Waveshare ESP32-P4-WIFI6-Touch-LC
 | `03_Drawing_board` | GT911 five-point capacitive touch drawing |
 | `04_LVGLV9_Arduino` | LVGL 9 widgets UI with touch input |
 | `05_GFX_ESPWiFiAnalyzer` | Graphical Wi-Fi scan (on-board ESP32-C6 coprocessor) |
-| `09_Audio_Playback` | ES8311 codec I2S tone playback (experimental) |
-| `08_SD_Card` | microSD read/write over the SDIO 3.0 slot |
 | `06_Camera_Preview` | OV5647 MIPI-CSI camera preview on the display |
 | `07_Camera_ISP_Tuning` | Live preview with interactive ISP/3A tuning over serial |
+| `08_SD_Card` | microSD read/write over the SDIO 3.0 slot |
+| `09_Audio_Playback` | ES8311 codec plays the opening of "Für Elise" as different-frequency tones |
+| `10_Mic_Record` | ES7210 quad-microphone capture; prints peak/RMS/decimated samples over serial |
+
+## Audio notes
+
+`09_Audio_Playback` drives the ES8311 codec (I2C 0x18) over TX-only I2S
+(MCLK 13, BCLK 12, LRCK 10, DOUT 9) and enables the 2 W speaker via GPIO 53.
+`10_Mic_Record` captures the on-board ES7210 microphones (I2C 0x40) over RX-only
+I2S (DIN 11) at 16 kHz/16-bit and prints the recorded frames to the serial monitor.
 
 ## Camera notes
 
