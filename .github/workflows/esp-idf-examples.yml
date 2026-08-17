@@ -1,0 +1,198 @@
+name: ESP-IDF examples
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "First-party ESP-IDF example: all, directory name, or path"
+        required: false
+        default: "all"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  validate:
+    name: Repository policy
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.scope.outputs.matrix }}
+      has_examples: ${{ steps.scope.outputs.has_examples }}
+      examples: ${{ steps.scope.outputs.examples }}
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+      firmware_changed: ${{ steps.scope.outputs.firmware_changed }}
+      release_review: ${{ steps.scope.outputs.release_review }}
+      unknown_paths: ${{ steps.scope.outputs.unknown_paths }}
+      head_sha: ${{ steps.scope.outputs.head_sha }}
+    steps:
+      - name: Checkout the exact event head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.CI_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CI_HEAD_SHA"
+
+      - name: Test repository policy helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/test_discover_esp_idf_examples.py
+          python .github/scripts/test_evaluate_ci_result.py
+          python .github/scripts/test_repository_policy.py
+          python .github/scripts/test_component_contracts.py
+          python .github/scripts/test_ci_tools.py
+
+      - name: Check first-party Markdown policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/check_repository_policy.py
+          python .github/scripts/check_component_contracts.py
+
+      - name: Classify changed files and discover examples
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_PROJECT: ${{ inputs.project }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            python .github/scripts/discover_esp_idf_examples.py --example "$REQUESTED_PROJECT" --head-ref "$CI_HEAD_SHA"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            python .github/scripts/discover_esp_idf_examples.py --base-ref "$PR_BASE_SHA" --head-ref "$CI_HEAD_SHA"
+          else
+            before="$BEFORE_SHA"
+            if [[ "$before" == "0000000000000000000000000000000000000000" ]]; then
+              before=""
+            fi
+            if [[ -n "$before" ]]; then
+              python .github/scripts/discover_esp_idf_examples.py --base-ref "$before" --head-ref "$CI_HEAD_SHA"
+            else
+              python .github/scripts/discover_esp_idf_examples.py --head-ref "$CI_HEAD_SHA"
+            fi
+          fi
+
+      - name: Scope summary
+        shell: bash
+        env:
+          VALIDATED_HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
+          DOCS_ONLY: ${{ steps.scope.outputs.docs_only }}
+          FIRMWARE_CHANGED: ${{ steps.scope.outputs.firmware_changed }}
+          RELEASE_REVIEW: ${{ steps.scope.outputs.release_review }}
+          UNKNOWN_PATHS: ${{ steps.scope.outputs.unknown_paths }}
+          HAS_EXAMPLES: ${{ steps.scope.outputs.has_examples }}
+          SELECTED_EXAMPLES: ${{ steps.scope.outputs.examples }}
+        run: |
+          {
+            echo "### Repository validation scope"
+            echo
+            echo "- Head SHA: $VALIDATED_HEAD_SHA"
+            echo "- Documentation only: $DOCS_ONLY"
+            echo "- Firmware surface changed: $FIRMWARE_CHANGED"
+            echo "- Immutable artifact review required: $RELEASE_REVIEW"
+            echo "- Unclassified paths: $UNKNOWN_PATHS"
+            echo
+            if [[ "$HAS_EXAMPLES" == "true" ]]; then
+              echo "#### Selected first-party examples"
+              echo
+              printf '%s\n' "$SELECTED_EXAMPLES" | tr ',' '\n' | sed '/^$/d' | sed 's/^/- /'
+            else
+              echo "No first-party example build is required for this complete diff."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build ${{ matrix.example }} (${{ matrix.idf_version }})
+    needs: validate
+    if: needs.validate.outputs.has_examples == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.validate.outputs.matrix) }}
+    steps:
+      - name: Checkout validated head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.validate.outputs.head_sha }}
+          persist-credentials: false
+
+      - name: Build with ESP-IDF
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
+        with:
+          esp_idf_version: ${{ matrix.idf_version }}
+          target: esp32p4
+          path: ${{ matrix.example }}
+
+      - name: Package CI firmware bundle
+        env:
+          PACKAGE_GIT_SHA: ${{ needs.validate.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python releases/package_firmware.py \
+            --project "${{ matrix.example }}" \
+            --build-dir "${{ matrix.example }}/build" \
+            --framework-version "${{ matrix.idf_version }}" \
+            --board-profile rev1_3 \
+            --output-dir release-artifacts
+
+      - name: Upload CI firmware bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: firmware-esp-idf-${{ matrix.project_slug }}-${{ matrix.idf_version }}-rev1_3
+          path: release-artifacts/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  result:
+    name: ${{ github.event_name == 'workflow_dispatch' && 'ESP-IDF examples (manual)' || 'ESP-IDF examples' }}
+    if: ${{ always() }}
+    needs:
+      - validate
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated head for result evaluation
+        if: ${{ needs.validate.result == 'success' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.head_sha }}
+          persist-credentials: false
+
+      - name: Require the selected validation
+        if: ${{ always() }}
+        shell: bash
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          HAS_EXAMPLES: ${{ needs.validate.outputs.has_examples }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          RELEASE_REVIEW: ${{ needs.validate.outputs.release_review }}
+          VALIDATED_HEAD_SHA: ${{ needs.validate.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          python .github/scripts/evaluate_ci_result.py \
+            --validate-result "$VALIDATE_RESULT" \
+            --has-examples "$HAS_EXAMPLES" \
+            --build-result "$BUILD_RESULT" \
+            --release-review "$RELEASE_REVIEW" \
+            --head-sha "$VALIDATED_HEAD_SHA"

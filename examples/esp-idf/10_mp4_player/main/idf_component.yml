@@ -1,9 +1,10 @@
 dependencies:
   idf: ">=5.4"
 
-  waveshare/esp32_p4_wifi6_touch_lcd_5:
-    version: "*"
-
+  waveshare/esp32_p4_wifi6_touch_lcd_5: "^1.0.3"
+  waveshare/esp_lcd_hx8394: "^2.1.0"
+  # v2.6.0 requires ESP32-P4 revision >= 3. This product keeps revision 1/2
+  # compatibility, while v2.5.0 explicitly supports ESP-IDF 6 builds.
   espressif/esp_audio_codec:
-    version: "^2.3.0"
+    version: "2.5.0"
     public: true

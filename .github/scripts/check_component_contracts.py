@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""Static compatibility contracts that are easy for default builds to miss."""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+
+BROOKESIA_ROOT = Path("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core")
+BROOKESIA_SPEAKER_MANIFEST = BROOKESIA_ROOT / "systems/speaker/idf_component.yml"
+WIFI_MANIFEST = Path("examples/esp-idf/04_wifistation/main/idf_component.yml")
+MP4_AUDIO_MANIFEST = Path("examples/esp-idf/10_mp4_player/main/idf_component.yml")
+VIDEO_DEFAULTS = Path("examples/esp-idf/09_video_lcd_display/sdkconfig.defaults")
+BROOKESIA_MAIN = Path("examples/esp-idf/11_esp_brookesia_phone/main/main.cpp")
+BROOKESIA_DEFAULTS = Path("examples/esp-idf/11_esp_brookesia_phone/sdkconfig.defaults")
+USB_DESCRIPTOR_SOURCE = Path("examples/esp-idf/12_usb_extend_screen/main/tusb/usb_descriptors.c")
+USB_DESCRIPTOR_HEADER = Path("examples/esp-idf/12_usb_extend_screen/main/tusb/usb_descriptors.h")
+USB_APP_MAIN = Path("examples/esp-idf/12_usb_extend_screen/main/usb_extend_screen.c")
+BSP_COMPONENT = "waveshare/esp32_p4_wifi6_touch_lcd_5"
+BSP_COMPONENT_VERSION = "^1.0.3"
+HX8394_COMPONENT = "waveshare/esp_lcd_hx8394"
+HX8394_COMPONENT_VERSION = "^2.1.0"
+DISPLAY_PROJECTS = (
+    "07_Displaycolorbar",
+    "08_lvgl_demo_v9",
+    "09_video_lcd_display",
+    "10_mp4_player",
+    "11_esp_brookesia_phone",
+    "12_usb_extend_screen",
+)
+ALL_PROJECTS = (
+    "01_HowToCreateProject",
+    "02_HelloWorld",
+    "03_i2c_tools",
+    "04_wifistation",
+    "05_sdmmc",
+    "06_I2SCodec",
+    *DISPLAY_PROJECTS,
+)
+MAIN_MANIFESTS = tuple(
+    Path(f"examples/esp-idf/{project}/main/idf_component.yml")
+    for project in DISPLAY_PROJECTS
+)
+BSP_EXTRA_MANIFESTS = tuple(
+    Path(f"examples/esp-idf/{project}/components/bsp_extra/idf_component.yml")
+    for project in ("08_lvgl_demo_v9", "12_usb_extend_screen")
+)
+
+
+@dataclass(frozen=True, order=True)
+class Finding:
+    path: str
+    code: str
+    message: str
+
+
+def read(repo: Path, relative: Path) -> str:
+    path = repo / relative
+    if not path.is_file():
+        raise OSError(f"required compatibility file is missing: {relative.as_posix()}")
+    return path.read_text(encoding="utf-8")
+
+
+def dependency_block(manifest: str, component: str) -> str | None:
+    match = re.search(
+        rf"(?ms)^  {re.escape(component)}:\s*$"
+        r"(.*?)(?=^  [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+:\s*$|\Z)",
+        manifest,
+    )
+    return match.group(1) if match else None
+
+
+def check_brookesia(repo: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    kconfig_path = BROOKESIA_ROOT / "Kconfig"
+    manifest_path = BROOKESIA_ROOT / "idf_component.yml"
+    kconfig = read(repo, kconfig_path)
+    manifest = read(repo, manifest_path)
+    symbol = re.search(
+        r"(?ms)^\s*config ESP_BROOKESIA_ENABLE_AI_FRAMEWORK\s*$"
+        r"(.*?)(?=^\s*(?:config|menuconfig) [A-Z0-9_]+\s*$)",
+        kconfig,
+    )
+    if not symbol:
+        findings.append(Finding(kconfig_path.as_posix(), "BROOKESIA_AI_SYMBOL_MISSING", "keep the disabled compatibility symbol explicit"))
+    else:
+        block = symbol.group(1)
+        if not re.search(r"(?m)^\s+bool\s*$", block):
+            findings.append(Finding(kconfig_path.as_posix(), "BROOKESIA_AI_OPTION_EXPOSED", "legacy AI support must remain hidden while its dependencies are omitted"))
+        if not re.search(r"(?m)^\s+default n\s*$", block):
+            findings.append(Finding(kconfig_path.as_posix(), "BROOKESIA_AI_DEFAULT_ENABLED", "legacy AI support must remain disabled"))
+    if 'rsource "ai_framework/Kconfig"' in kconfig:
+        findings.append(Finding(kconfig_path.as_posix(), "BROOKESIA_AI_KCONFIG_REACHABLE", "legacy AI sub-options must not be reachable without the dependency stack"))
+
+    boost_contract = ('if: "idf_version >= 6.0"', 'version: "0.6.0"', 'if: "idf_version < 6.0"', 'version: "0.3.*"')
+    for boost_manifest_path in (manifest_path, BROOKESIA_SPEAKER_MANIFEST):
+        boost = dependency_block(read(repo, boost_manifest_path), "espressif/esp-boost")
+        if not boost or any(marker not in boost for marker in boost_contract):
+            findings.append(Finding(boost_manifest_path.as_posix(), "BROOKESIA_BOOST_RANGE", "require esp-boost 0.3.* on IDF 5 and exact 0.6.0 on IDF 6"))
+    for dependency in ("esp_coze", "gmf_core", "gmf_ai_audio", "gmf_io", "gmf_misc", "gmf_audio", "esp_audio_simple_player", "esp_websocket_client"):
+        if re.search(rf"(?m)^\s+espressif/{re.escape(dependency)}:\s*$", manifest):
+            findings.append(Finding(manifest_path.as_posix(), "BROOKESIA_AI_DEPENDENCY_WITH_DISABLED_FEATURE", f"unexpected disabled AI dependency espressif/{dependency}"))
+    return findings
+
+
+def check_registry_dependency(relative: Path, manifest: str, component: str, version: str) -> list[Finding]:
+    findings: list[Finding] = []
+    matches = re.findall(
+        rf"(?m)^  {re.escape(component)}:(.*)$",
+        manifest,
+    )
+    if len(matches) != 1:
+        return [Finding(relative.as_posix(), "MANAGED_COMPONENT_DEPENDENCY_COUNT", f"require exactly one {component} dependency")]
+    declared = matches[0].strip()
+    if declared != f'"{version}"':
+        findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_REGISTRY_VERSION", f"require {component} {version} from the registry"))
+    if re.search(rf"(?m)^\s*git:\s", manifest):
+        findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_GIT_PIN", "managed component dependency must resolve from the registry, not a git pin"))
+    if re.search(r"(?m)^\s*(?:override|override_path):", manifest):
+        findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_OVERRIDE", "managed component dependency must not use an override"))
+    if re.search(r"(?m)^\s*path:\s*(?:\.?/?components/|\.)", manifest):
+        findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_LOCAL_REFERENCE", "managed component dependency must not use a local path"))
+    if re.search(r"(?m)^\s*version:\s*['\"]?\*", manifest):
+        findings.append(Finding(relative.as_posix(), "MANAGED_COMPONENT_WILDCARD", "managed component dependency must not use a wildcard version"))
+    return findings
+
+
+def check_managed_components(repo: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    for project, relative in zip(DISPLAY_PROJECTS, MAIN_MANIFESTS):
+        for component in (BSP_COMPONENT, HX8394_COMPONENT):
+            local = Path(f"examples/esp-idf/{project}/components/{component.split('/', 1)[1]}")
+            if (repo / local).exists():
+                findings.append(Finding(local.as_posix(), "LOCAL_MANAGED_COMPONENT_REMAINS", "remove the replaced example-local component directory"))
+        manifest = read(repo, relative)
+        findings.extend(check_registry_dependency(relative, manifest, BSP_COMPONENT, BSP_COMPONENT_VERSION))
+        findings.extend(check_registry_dependency(relative, manifest, HX8394_COMPONENT, HX8394_COMPONENT_VERSION))
+    for relative in BSP_EXTRA_MANIFESTS:
+        findings.extend(
+            check_registry_dependency(
+                relative,
+                read(repo, relative),
+                BSP_COMPONENT,
+                BSP_COMPONENT_VERSION,
+            )
+        )
+    return findings
+
+
+def check_revision_defaults(repo: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    required = ('CONFIG_IDF_TARGET="esp32p4"', "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y", "CONFIG_ESP32P4_REV_MIN_100=y")
+    for project in ALL_PROJECTS:
+        relative = Path(f"examples/esp-idf/{project}/sdkconfig.defaults")
+        content = read(repo, relative)
+        if any(marker not in content for marker in required):
+            findings.append(Finding(relative.as_posix(), "P4_PRE_V3_REVISION_DEFAULT", "require esp32p4, pre-v3 selection, and revision 1.0 default"))
+    alternate = Path("examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4")
+    content = read(repo, alternate)
+    if any(marker not in content for marker in required):
+        findings.append(Finding(alternate.as_posix(), "P4_PRE_V3_REVISION_DEFAULT", "require the same pre-v3 revision default as the top-level profile"))
+    for path in repo.glob("examples/esp-idf/*/sdkconfig.defaults*"):
+        if path.is_file() and re.search(r"(?m)^CONFIG_ESP32P4_REV_MIN_1=y\s*$", path.read_text(encoding="utf-8")):
+            findings.append(Finding(path.relative_to(repo).as_posix(), "P4_REVISION_ONE_SYMBOL", "use CONFIG_ESP32P4_REV_MIN_100=y, not the obsolete revision symbol"))
+    return findings
+
+
+def check_hosted_wifi(repo: Path) -> list[Finding]:
+    manifest = read(repo, WIFI_MANIFEST)
+    required_ranges = ('version: ">=1.6,<2.0"', 'version: "0.14.*"', 'version: ">=2.12,<3.0"', 'version: "1.4.*"')
+    if all(value in manifest for value in required_ranges) and "matching slave" in manifest:
+        return []
+    return [Finding(WIFI_MANIFEST.as_posix(), "HOSTED_WIFI_RANGE", "keep the matching-slave compatibility ranges and revisit condition")]
+
+
+def check_mp4_audio_codec(repo: Path) -> list[Finding]:
+    dependency = dependency_block(read(repo, MP4_AUDIO_MANIFEST), "espressif/esp_audio_codec")
+    if dependency and 'version: "2.5.0"' in dependency:
+        return []
+    return [Finding(MP4_AUDIO_MANIFEST.as_posix(), "MP4_AUDIO_CODEC_VERSION", "ESP32-P4 revision 1/2 compatibility requires esp_audio_codec 2.5.0")]
+
+
+def check_display_resolution_contracts(repo: Path) -> list[Finding]:
+    findings: list[Finding] = []
+
+    video_defaults = read(repo, VIDEO_DEFAULTS)
+    required_video_defaults = (
+        "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X1280_50FPS=y",
+        "CONFIG_CAMERA_OV5647_MIPI_DEFAULT_FMT_RAW8_800X1280_50FPS=y",
+    )
+    if any(
+        not re.search(rf"(?m)^{re.escape(marker)}[ \\t]*$", video_defaults)
+        for marker in required_video_defaults
+    ):
+        findings.append(Finding(VIDEO_DEFAULTS.as_posix(), "OV5647_PORTRAIT_DEFAULT", "require OV5647 800x1280 support and select it as the actual default format"))
+    active_video_defaults = set(re.findall(
+        r"(?m)^(CONFIG_CAMERA_OV5647_MIPI_DEFAULT_FMT_[A-Z0-9_]+)=y[ \\t]*$",
+        video_defaults,
+    ))
+    if active_video_defaults != {"CONFIG_CAMERA_OV5647_MIPI_DEFAULT_FMT_RAW8_800X1280_50FPS"}:
+        findings.append(Finding(VIDEO_DEFAULTS.as_posix(), "OV5647_PORTRAIT_DEFAULT", "do not select a competing OV5647 default format"))
+    if re.search(r"(?m)^CONFIG_CAMERA_OV5647_MIPI_RAW8_800x1280_50FPS=y\s*$", video_defaults):
+        findings.append(Finding(VIDEO_DEFAULTS.as_posix(), "OV5647_LEGACY_FORMAT_SYMBOL", "use the canonical uppercase 800X1280 Kconfig symbol"))
+
+    brookesia_main = read(repo, BROOKESIA_MAIN)
+    if not re.search(
+        r"(?s)else\s+if\s*\(\(BSP_LCD_H_RES\s*==\s*720\)\s*&&\s*"
+        r"\(BSP_LCD_V_RES\s*==\s*1280\)\)\s*\{[^{}]*STYLESHEET_720_1280_DARK[^{}]*\}",
+        brookesia_main,
+    ):
+        findings.append(Finding(BROOKESIA_MAIN.as_posix(), "BROOKESIA_720_1280_STYLESHEET", "activate the bundled 720x1280 stylesheet for the product display"))
+    if "CONFIG_BSP_LCD_TYPE_720_1280_7_INCH_A=y" in read(repo, BROOKESIA_DEFAULTS):
+        findings.append(Finding(BROOKESIA_DEFAULTS.as_posix(), "BROOKESIA_STALE_LCD_PROFILE", "remove the ignored LCD profile symbol from another BSP"))
+
+    usb_header = read(repo, USB_DESCRIPTOR_HEADER)
+    usb_source = read(repo, USB_DESCRIPTOR_SOURCE)
+    usb_main = read(repo, USB_APP_MAIN)
+    resolution_ok = all(
+        re.search(pattern, usb_header)
+        for pattern in (
+            r"(?m)^#define\s+USB_EXTEND_SCREEN_H_RES\s+720\s*$",
+            r"(?m)^#define\s+USB_EXTEND_SCREEN_V_RES\s+1280\s*$",
+        )
+    )
+    hid_order_ok = bool(re.search(
+        r"TUD_HID_REPORT_DESC_TOUCH_SCREEN\s*\(\s*REPORT_ID_TOUCH\s*,\s*"
+        r"USB_EXTEND_SCREEN_H_RES\s*,\s*USB_EXTEND_SCREEN_V_RES\s*\)",
+        usb_source,
+    ))
+    vendor_start = usb_source.find("#define VENDOR_STR")
+    vendor_end = usb_source.find("// array of pointer", vendor_start)
+    vendor_block = usb_source[vendor_start:vendor_end] if vendor_start >= 0 and vendor_end > vendor_start else ""
+    vendor_h = vendor_block.find("STRINGIFY(USB_EXTEND_SCREEN_H_RES)")
+    vendor_x = vendor_block.find('"x"')
+    vendor_v = vendor_block.find("STRINGIFY(USB_EXTEND_SCREEN_V_RES)")
+    vendor_order_ok = 0 <= vendor_h < vendor_x < vendor_v
+    assertions_ok = all(
+        marker in usb_main
+        for marker in (
+            "_Static_assert(USB_EXTEND_SCREEN_H_RES == BSP_LCD_H_RES",
+            "_Static_assert(USB_EXTEND_SCREEN_V_RES == BSP_LCD_V_RES",
+        )
+    )
+    if not (resolution_ok and hid_order_ok and vendor_order_ok and assertions_ok):
+        findings.append(Finding(USB_DESCRIPTOR_SOURCE.as_posix(), "USB_DISPLAY_RESOLUTION", "advertise 720x1280, map HID X/Y in that order, and compile-check the values against the BSP"))
+    return findings
+
+
+def run(repo: Path) -> list[Finding]:
+    repo = repo.resolve()
+    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_display_resolution_contracts(repo)})
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Check repository-specific static component contracts.")
+    parser.add_argument("--root", type=Path, default=Path("."))
+    args = parser.parse_args()
+    try:
+        findings = run(args.root)
+    except (OSError, UnicodeError, ValueError) as error:
+        print(f"component contract error: {error}", file=sys.stderr)
+        return 2
+    if findings:
+        for finding in findings:
+            print(f"{finding.path}: {finding.code}: {finding.message}")
+        print(f"{len(findings)} component contract finding(s)", file=sys.stderr)
+        return 1
+    print("Component contract check passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

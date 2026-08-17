@@ -1,6 +1,7 @@
 **/.git/
 **/.gitmodules
 **/.gitattributes
+!/.gitattributes
 **/.gitkeep
 **/.vscode
 **/.gitindex
@@ -12,3 +13,8 @@
 **/dependencies.lock
 **/sdkconfig
 **/sdkconfig.old
+**/__pycache__/
+**/*.py[cod]
+
+# Arduino CI packaging output
+/release-artifacts/

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Official product support
+    url: https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5/Technical-Support
+    about: Product setup, purchase, and hardware support
+  - name: 官方产品支持
+    url: https://docs.waveshare.net/ESP32-P4-WIFI6-Touch-LCD-5/Technical-Support
+    about: 产品配置、购买与硬件支持
