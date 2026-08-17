@@ -3,7 +3,7 @@
 # 基于原理图的硬件核验
 
 本页记录仓库配置与
-[随仓库提供的原理图](../schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
+[随仓库提供的原理图](../hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
 之间的交叉核对结果。它属于源码/配置一致性审计，不代表已经完成开发板运行测试。
 
 ## 已确认映射

@@ -42,8 +42,8 @@ multimedia, edge-computing, and connected-device applications.
 | Camera | 2-lane MIPI-CSI interface with optional OV5647 camera |
 | USB | USB-to-UART and USB OTG 2.0 High Speed Type-C ports |
 | Expansion | 40-pin GPIO header compatible with selected Raspberry Pi HATs; a suitable pin-header adapter may be required |
-| Board support | Temporary exact upstream Git pin for the LCD5 BSP and HX8394 component |
-| Hardware files | [Schematic](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
+| Board support | Registry components `waveshare/esp32_p4_wifi6_touch_lcd_5` ^1.0.3 and `waveshare/esp_lcd_hx8394` ^2.1.0 |
+| Hardware files | [Schematic](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 For complete product specifications, interfaces, and hardware instructions, see the
 [official documentation](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5).
@@ -131,7 +131,7 @@ flasher probes are not included in this example migration.
 | [`docs/`](docs/) | CI, component, hardware, and hosted-Wi-Fi maintenance contracts |
 | [`examples/esp-idf/`](examples/esp-idf/) | First-party ESP-IDF projects |
 | [`firmware/`](firmware/) | Factory flashing firmware |
-| [`schematic/`](schematic/) | Product schematic |
+| [`hardware/schematic/`](hardware/schematic/) | Product schematic |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution and validation workflow |
 | [`SUPPORT.md`](SUPPORT.md) | Support scope and public-log privacy guidance |
 | [`LICENSE.txt`](LICENSE.txt) | Apache License 2.0 |
@@ -149,7 +149,7 @@ before using it.
 
 - [Product Page](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm)
 - [Product Documentation](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5)
-- [Product Schematic](schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
+- [Product Schematic](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf)
 - [ESP-IDF Examples](examples/esp-idf/)
 - [Repository Documentation](docs/README.md)
 - [CI Discovery and Routing](docs/CI.md)
