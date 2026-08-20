@@ -221,6 +221,8 @@ class ContractTests(unittest.TestCase):
         self.assertIn('actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a', workflow)
         self.assertIn('Artifact = "firmware-esp-idf-$slug-$version-$profile"', flasher)
         self.assertIn("@('rev1_3', 'rev3_x')", flasher)
+        self.assertIn("foreach ($selectedProfile in @('rev1_3', 'rev3_x'))", flasher)
+        self.assertIn("$profileItemCount = 24", flasher)
         self.assertIn("rev3_x = [pscustomobject]@{ Minimum = '3.0'; MaximumExclusive = '4.0' }", flasher)
         self.assertIn('--board-profile "${{ matrix.profile }}"', workflow)
         self.assertIn('name: firmware-esp-idf-${{ matrix.project_slug }}-${{ matrix.idf_version }}-${{ matrix.profile }}', workflow)

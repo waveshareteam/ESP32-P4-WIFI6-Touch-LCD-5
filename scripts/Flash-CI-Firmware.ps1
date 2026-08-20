@@ -131,18 +131,21 @@ if ($SelfTest) {
     if (-not $manifestMismatch) { throw 'SelfTest manifest profile mismatch failed.' }
     $rev1State = Get-StatePath 'C:\state' 'rev1_3'
     if ($rev1State -notmatch 'state-v3-rev1_3\.json$' -or $rev1State -eq (Join-Path 'C:\state' 'state-v3-rev3_x.json')) { throw 'SelfTest profile state isolation failed.' }
-    $profileItems = @($Items | Where-Object { $_.Profile -eq 'rev1_3' })
-    if ($profileItems.Count -ne 24) { throw 'SelfTest expected exactly 24 items per profile.' }
-    $current = 1; $confirmed = @(); $transitions = 0
-    while ($current -lt $profileItems.Count) { $next = Get-NextProgress $current $confirmed $profileItems.Count; if ($next.Completed -or $next.CurrentIndex -ne ($current + 1)) { throw 'SelfTest progress transition failed.' }; $current = $next.CurrentIndex; $confirmed = @($next.ConfirmedIndexes); $transitions++ }
-    $last = Get-NextProgress $current $confirmed $profileItems.Count
-    if (-not $last.Completed -or @($last.ConfirmedIndexes).Count -ne 24) { throw 'SelfTest did not complete the selected profile.' }
+    $profileItemCount = 24
+    foreach ($selectedProfile in @('rev1_3', 'rev3_x')) {
+        $profileItems = @($Items | Where-Object { $_.Profile -eq $selectedProfile })
+        if ($profileItems.Count -ne $profileItemCount -or @($profileItems | Where-Object { $_.Profile -ne $selectedProfile }).Count -ne 0) { throw "SelfTest expected exactly $profileItemCount isolated items for $selectedProfile." }
+        $current = 1; $confirmed = @(); $transitions = 0
+        while ($current -lt $profileItems.Count) { $next = Get-NextProgress $current $confirmed $profileItems.Count; if ($next.Completed -or $next.CurrentIndex -ne ($current + 1)) { throw "SelfTest progress transition failed for $selectedProfile." }; $current = $next.CurrentIndex; $confirmed = @($next.ConfirmedIndexes); $transitions++ }
+        $last = Get-NextProgress $current $confirmed $profileItems.Count
+        if (-not $last.Completed -or @($last.ConfirmedIndexes).Count -ne $profileItemCount) { throw "SelfTest did not complete $selectedProfile." }
+    }
     $reset = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = 'other'; RunId = '101'; CurrentIndex = 4; ConfirmedIndexes = @(1,2,3) }) ('a' * 40) 'rev1_3' '101'
     if ($reset.CurrentIndex -ne 1 -or @($reset.ConfirmedIndexes).Count -ne 0) { throw 'SelfTest SHA reset failed.' }
     $runReset = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = ('a' * 40); RunId = '101'; CurrentIndex = 4; ConfirmedIndexes = @(1,2,3) }) ('a' * 40) 'rev1_3' '102'
     if ($runReset.CurrentIndex -ne 1 -or @($runReset.ConfirmedIndexes).Count -ne 0) { throw 'SelfTest run reset failed.' }
-    $complete = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = ('a' * 40); RunId = '101'; CurrentIndex = 24; ConfirmedIndexes = @(1..24) }) ('a' * 40) 'rev1_3' '101' $profileItems.Count
-    if (-not (Test-CompletedState $complete $profileItems.Count)) { throw 'SelfTest completed-state recovery failed.' }
+    $complete = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = ('a' * 40); RunId = '101'; CurrentIndex = 24; ConfirmedIndexes = @(1..24) }) ('a' * 40) 'rev1_3' '101' $profileItemCount
+    if (-not (Test-CompletedState $complete $profileItemCount)) { throw 'SelfTest completed-state recovery failed.' }
     if ($null -ne (ConvertFrom-StateJson '{')) { throw 'SelfTest malformed state reset failed.' }
     if ([System.IO.Path]::GetDirectoryName((Get-StateTempPath 'C:\state\state-v3-rev1_3.json')) -ne 'C:\state') { throw 'SelfTest atomic state temporary path failed.' }
     $fullInventory = [pscustomobject]@{ TotalCount = $Items.Count; Artifacts = @($Items | ForEach-Object { [pscustomobject]@{ name = $_.Artifact; expired = $false } }) }
