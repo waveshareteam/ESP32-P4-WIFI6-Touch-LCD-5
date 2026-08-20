@@ -153,19 +153,34 @@ def check_managed_components(repo: Path) -> list[Finding]:
 
 def check_revision_defaults(repo: Path) -> list[Finding]:
     findings: list[Finding] = []
-    required = ('CONFIG_IDF_TARGET="esp32p4"', "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y", "CONFIG_ESP32P4_REV_MIN_100=y")
+    required = (
+        'CONFIG_IDF_TARGET="esp32p4"',
+        "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n",
+        "CONFIG_ESP32P4_REV_MIN_300=y",
+    )
     for project in ALL_PROJECTS:
         relative = Path(f"examples/esp-idf/{project}/sdkconfig.defaults")
         content = read(repo, relative)
         if any(marker not in content for marker in required):
-            findings.append(Finding(relative.as_posix(), "P4_PRE_V3_REVISION_DEFAULT", "require esp32p4, pre-v3 selection, and revision 1.0 default"))
+            findings.append(Finding(relative.as_posix(), "P4_REV3_REVISION_DEFAULT", "require esp32p4, rev3.x selection, and revision 3.0 default"))
     alternate = Path("examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4")
     content = read(repo, alternate)
-    if any(marker not in content for marker in required):
-        findings.append(Finding(alternate.as_posix(), "P4_PRE_V3_REVISION_DEFAULT", "require the same pre-v3 revision default as the top-level profile"))
+    if any(marker not in content for marker in required[1:]):
+        findings.append(Finding(alternate.as_posix(), "P4_REV3_REVISION_DEFAULT", "require the rev3.x revision default in the ESP32-P4 overlay"))
     for path in repo.glob("examples/esp-idf/*/sdkconfig.defaults*"):
-        if path.is_file() and re.search(r"(?m)^CONFIG_ESP32P4_REV_MIN_1=y\s*$", path.read_text(encoding="utf-8")):
-            findings.append(Finding(path.relative_to(repo).as_posix(), "P4_REVISION_ONE_SYMBOL", "use CONFIG_ESP32P4_REV_MIN_100=y, not the obsolete revision symbol"))
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            relative_path = path.relative_to(repo).as_posix()
+            if re.search(r"(?m)^CONFIG_ESP32P4_REV_MIN_1=y\s*$", text):
+                findings.append(Finding(relative_path, "P4_REVISION_ONE_SYMBOL", "use an explicit supported revision symbol, not the obsolete revision symbol"))
+            # Legacy symbols are valid only in a deliberately named compatibility
+            # overlay. The default file and the ESP32-P4 USB overlay must remain
+            # rev3.x so an unqualified build targets current silicon.
+            if not path.name.endswith(".rev1_3") and (
+                "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y" in text
+                or "CONFIG_ESP32P4_REV_MIN_100=y" in text
+            ):
+                findings.append(Finding(relative_path, "P4_LEGACY_REVISION_DEFAULT", "rev1_3 must remain an explicit overlay, not the default example profile"))
     return findings
 
 
