@@ -18,7 +18,9 @@ Arduino sketches and bundled libraries for the Waveshare ESP32-P4-WIFI6-Touch-LC
   - `Partition Scheme`: `13M APP / 7M data (32 MB)`
   - `Upload Mode`: `Default (USB-UART bridge)`
 - Enable PSRAM in the board settings; the display sketches require it.
-- For an explicit rev1.3/pre-v3 board, select `Chip Variant: Before v3.00`; that legacy profile uses 200 MHz PSRAM. Do not mix the two profiles.
+- For confirmed rev1.x ESP32-P4 silicon (including rev1.3), select
+  `Chip Variant: Before v3.00`; that legacy profile uses 200 MHz PSRAM. This is
+  a silicon setting, not a PCB revision. Do not mix the two profiles.
 
 ## Examples
 

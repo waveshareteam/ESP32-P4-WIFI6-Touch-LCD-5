@@ -60,15 +60,44 @@ Git diff 决定。
 路由、Markdown 和组件策略辅助脚本均配有合成测试，覆盖文档、直接源码、共享输入、
 固件、重命名/删除、未知路径及不完整 diff。
 
-## 托管组件版本与 revision 默认配置
+## 托管组件版本
 
 显示示例 07–12 从 ESP Component Registry（waveshare 命名空间）解析 LCD5 BSP `^1.0.3`
-与 HX8394 驱动 `^2.1.0`。默认源码配置选择 rev3.x；仓库保留显式的 `rev1_3` overlay
-以兼容 pre-v3 示例。独立的板级产品固件不属于本次示例 CI 变更。
+与 HX8394 驱动 `^2.1.0`。默认源码配置选择 rev3.x。独立的板级产品固件
+revision 任务不属于本次示例 CI 变更。
 
-示例固件包同时使用两个显式 profile 构建并发布：`rev1_3`（`[1.0, 3.0)`、
-200 MHz PSRAM）与 `rev3_x`（`[3.0, 4.0)`、250 MHz PSRAM）。源码默认配置为 rev3.x；
-profile overlay 可避免误用不匹配的芯片设置。
+## ESP32-P4 芯片 revision profile
+
+`rev1_3` 与 `rev3_x` 表示的是通过芯片探测得到的 **ESP32-P4 芯片 revision**，
+不是 Waveshare PCB 或产品硬件 revision。不要只根据 PCB 丝印选择
+profile；应使用烧录器的只读探测或其他可信芯片信息确认芯片 revision。
+
+| Profile | 支持的 ESP32-P4 芯片 | Revision 配置 | PSRAM 配置 | 仓库中的用途 |
+| --- | --- | --- | --- | --- |
+| `rev3_x` | `[3.0, 4.0)` | `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n` 与 `CONFIG_ESP32P4_REV_MIN_300=y` | `CONFIG_SPIRAM_SPEED_250M=y`，250 MHz | 全部 12 个第一方示例的默认值，也是 CI 的当前芯片显式 profile |
+| `rev1_3` | `[1.0, 2.0)`（rev1.x，包括 rev1.3） | `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y` 与 `CONFIG_ESP32P4_REV_MIN_100=y` | `CONFIG_SPIRAM_SPEED_200M=y`，200 MHz | 兼容 profile；仅用于已确认的 rev1.x 芯片 |
+
+虽然历史符号名称为 `SELECTS_REV_LESS_V3`，但两条受支持的 IDF 版本线都会为该
+profile 生成 `CONFIG_ESP32P4_REV_MAX_FULL=199`，因此 `rev1_3` 不支持 2.x revision。
+
+示例固件包同时使用 `rev1_3` 与 `rev3_x` 两个显式 profile 构建并发布。
+未显式加载 profile overlay 时，每个顶层 `sdkconfig.defaults` 都会选择上表的
+`rev3_x`；命名 overlay 则用于 CI 与可重复的本地构建。
+
+本地切换 profile 时，请在选定示例的工程目录中执行，并隔离构建目录与
+生成的 `sdkconfig`：
+
+```bash
+profile=rev3_x  # 或 rev1_3
+idf.py -B "build/$profile" \
+  -D "SDKCONFIG=$PWD/build/$profile/sdkconfig" \
+  -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.$profile" \
+  build
+idf.py -B "build/$profile" -p PORT flash monitor
+```
+
+普通构建中，工程目录里既有的 `sdkconfig` 优先级高于 defaults，因此切换 profile
+时不能复用。上述命令为每个 profile 指定独立的生成配置，从而避免此优先级问题。
 
 ## CI 固件包与人工硬件验证
 
@@ -103,8 +132,10 @@ Flash-CI-Firmware.cmd -Port COMx [-Baud N]
 SHA-256、offset、重叠和 32 MiB flash 边界；之后还要求 esptool 成功退出并输出
 `Hash of data verified`。
 在下载 artifact 或烧录之前，它会执行只读 `esptool chip_id` ESP32-P4 探测（仅在兼容性需要时
-回退到 `chip-id`），解析芯片 revision，并根据 revision 选择 `< 3.0` 的 `rev1_3` 或
-`>= 3.0` 的 `rev3_x`，随后校验 manifest 范围是否匹配。芯片 revision 检查不能替代
+回退到 `chip-id`），解析芯片 revision，并为 `[1.0, 2.0)` 选择 `rev1_3`、为
+`[3.0, 4.0)` 选择 `rev3_x`。范围外的 revision（包括 0.x、2.x 以及 4.x 或更新版本）
+会在查找、下载或烧录 artifact 前被拒绝；随后的 manifest 范围检查会拒绝任何
+profile 不匹配。芯片 revision 检查不能替代
 PCB/电气 revision 确认。每次烧录后，用户必须实际检查硬件并输入 `PASS`；进度按 profile
 隔离地存放在用户本地应用数据中，final SHA、选定 workflow run、profile 改变、保存状态截断/格式错误
 或旧 schema 时会自动重置。状态写入会先在同一目录创建临时文件，再原子替换或移动到状态文件。

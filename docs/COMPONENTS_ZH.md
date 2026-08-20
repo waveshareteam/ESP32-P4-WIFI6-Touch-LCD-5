@@ -39,7 +39,7 @@ HX8394 驱动在独立默认配置下会发送 I2C 命令序列；LCD5 BSP 为�
 
 全部 12 个第一方示例的默认配置面向 ESP32-P4 rev3.x 芯片，使用
 `CONFIG_ESP32P4_REV_MIN_300` 符号和 250 MHz PSRAM；USB 扩展屏的 ESP32-P4 overlay
-也使用相同默认值。仓库保留显式 `rev1_3` profile 兼容 pre-v3，并使用 200 MHz PSRAM；
+也使用相同默认值。仓库保留显式 `rev1_3` profile 兼容 rev1.x，并使用 200 MHz PSRAM；
 CI 会同时构建和发布两个 profile，烧录器在只读芯片探测后选择匹配的 profile。
 
 ## Brookesia 依赖约定
@@ -53,7 +53,7 @@ ESP-IDF 6 精确使用 0.6.0。LVGL 保持固定为 9.5.0，因为仓库的 ESP-
 ## MP4 音频编解码器边界
 
 MP4 示例将 `espressif/esp_audio_codec` 精确固定在 2.5.0。2.6.0 及后续版本要求
-ESP32-P4 revision 3 或更新芯片，而显式 `rev1_3` profile 仍保留 pre-v3 支持。修改这一
+ESP32-P4 revision 3 或更新芯片，而显式 `rev1_3` profile 仍保留 rev1.x 支持。修改这一
 版本约束前，必须取得硬件 revision 证据并通过完整 ESP-IDF 矩阵。
 
 ## 审查规则

@@ -199,7 +199,7 @@ def check_mp4_audio_codec(repo: Path) -> list[Finding]:
     dependency = dependency_block(read(repo, MP4_AUDIO_MANIFEST), "espressif/esp_audio_codec")
     if dependency and 'version: "2.5.0"' in dependency:
         return []
-    return [Finding(MP4_AUDIO_MANIFEST.as_posix(), "MP4_AUDIO_CODEC_VERSION", "ESP32-P4 revision 1/2 compatibility requires esp_audio_codec 2.5.0")]
+    return [Finding(MP4_AUDIO_MANIFEST.as_posix(), "MP4_AUDIO_CODEC_VERSION", "ESP32-P4 rev1.x compatibility requires esp_audio_codec 2.5.0")]
 
 
 def check_i2s_psram_dependency(repo: Path) -> list[Finding]:

@@ -53,8 +53,11 @@ For complete product specifications, interfaces, and hardware instructions, see 
 1. Install a supported ESP-IDF version and activate its environment.
 2. Open one of the projects under [`examples/esp-idf/`](examples/esp-idf/).
 3. Select the silicon profile, then build, flash, and monitor the project from
-   its directory. `rev3_x` is the default for current boards; use `rev1_3` only
-   for pre-v3 silicon:
+   its directory. `rev3_x` is the default for every repository example; use
+   `rev1_3` only after a chip probe or other authoritative evidence confirms
+   rev1.x ESP32-P4 silicon (including rev1.3). These profile names describe
+   silicon, not the PCB or product hardware revision; see the
+   [profile comparison](docs/CI.md#esp32-p4-silicon-revision-profiles):
 
    ```bash
    profile=rev3_x  # or rev1_3
@@ -78,7 +81,7 @@ HX8394 driver `^2.1.0` from the ESP Component Registry. The standalone HX8394
 default sends its I2C command sequence, while the LCD5 BSP selects the
 board-specific skip behavior. HIL on the target board is required before
 relying on display behavior or changing either version. The CI workflow also
-publishes explicit rev1_3 packages for pre-v3 silicon; those packages use the
+publishes explicit rev1_3 packages for rev1.x silicon; those packages use the
 profile-specific 200 MHz PSRAM settings.
 
 > [!NOTE]

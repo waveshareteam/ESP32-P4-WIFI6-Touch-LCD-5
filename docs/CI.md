@@ -70,18 +70,49 @@ The routing and Markdown/component-policy helpers have synthetic tests covering
 documentation, direct source, shared inputs, firmware, rename/deletion,
 unfamiliar paths, and incomplete diff data.
 
-## Managed component versions and revision defaults
+## Managed component versions
 
 Display examples 07–12 resolve the LCD5 BSP `^1.0.3` and the HX8394 driver
 `^2.1.0` from the ESP Component Registry (waveshare namespace). Their default
-source configuration selects rev3.x, while an explicit `rev1_3` overlay preserves
-pre-v3 example compatibility. Independent product-firmware revision jobs remain
-outside this example CI change.
+source configuration selects rev3.x. Independent product-firmware revision jobs
+remain outside this example CI change.
+
+## ESP32-P4 silicon revision profiles
+
+`rev1_3` and `rev3_x` identify **ESP32-P4 silicon revisions** reported by an
+ESP32-P4 chip probe. They do not identify the Waveshare PCB or product hardware
+revision. Do not select a profile from the PCB silkscreen alone; confirm the chip
+revision with the flasher's read-only probe or other authoritative chip evidence.
+
+| Profile | Supported ESP32-P4 silicon | Revision configuration | PSRAM configuration | Repository role |
+| --- | --- | --- | --- | --- |
+| `rev3_x` | `[3.0, 4.0)` | `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n` and `CONFIG_ESP32P4_REV_MIN_300=y` | `CONFIG_SPIRAM_SPEED_250M=y` and 250 MHz | Default for all 12 first-party examples and the explicit current-silicon CI profile |
+| `rev1_3` | `[1.0, 2.0)` (rev1.x, including rev1.3) | `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y` and `CONFIG_ESP32P4_REV_MIN_100=y` | `CONFIG_SPIRAM_SPEED_200M=y` and 200 MHz | Compatibility profile; use only for confirmed rev1.x silicon |
+
+Despite the historical `SELECTS_REV_LESS_V3` symbol name, both supported IDF
+lines generate `CONFIG_ESP32P4_REV_MAX_FULL=199` for this profile. Therefore a
+2.x revision is not covered by `rev1_3`.
 
 The example bundles are built and published for both explicit profiles: `rev1_3`
-(`[1.0, 3.0)`, 200 MHz PSRAM) and `rev3_x` (`[3.0, 4.0)`, 250 MHz PSRAM).
-The default source configuration is rev3.x; profile-specific CI overlays prevent
-accidentally using the wrong silicon settings.
+and `rev3_x`. With no explicit profile overlay, each top-level
+`sdkconfig.defaults` selects the `rev3_x` row above. The named overlays make both
+profiles explicit for CI and reproducible local builds.
+
+When switching profiles locally, run from the selected example directory and
+isolate both the build directory and generated `sdkconfig`:
+
+```bash
+profile=rev3_x  # or rev1_3
+idf.py -B "build/$profile" \
+  -D "SDKCONFIG=$PWD/build/$profile/sdkconfig" \
+  -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.$profile" \
+  build
+idf.py -B "build/$profile" -p PORT flash monitor
+```
+
+A previously generated project-level `sdkconfig` takes precedence over defaults
+in an ordinary build. Do not reuse it when changing profiles. The command above
+avoids that ambiguity by assigning each profile its own generated configuration.
 
 ## CI firmware bundles and manual hardware verification
 
@@ -124,8 +155,10 @@ checks every relative binary path, size, SHA-256, offset, overlap, and 32 MiB
 flash boundary, then requires both a successful esptool exit code and
 `Hash of data verified`. Before any artifact download or flash, it performs the
 read-only `esptool chip_id` ESP32-P4 probe (using `chip-id` only as a compatibility
-fallback), parses the silicon revision, and selects `rev1_3` for `< 3.0` and
-`rev3_x` for `>= 3.0`; the manifest range check then rejects a profile mismatch.
+fallback), parses the silicon revision, and selects `rev1_3` for `[1.0, 2.0)` or
+`rev3_x` for `[3.0, 4.0)`. Revisions outside those ranges, including 0.x, 2.x,
+and 4.x or newer, are rejected before artifact lookup, download, or flashing;
+the manifest range check then rejects any profile mismatch.
 The silicon check does not replace PCB/electrical revision
 confirmation. After each flash, the user must manually inspect the hardware and
 type `PASS`; progress is profile-isolated local application data and resets for

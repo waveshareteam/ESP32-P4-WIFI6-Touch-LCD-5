@@ -59,6 +59,12 @@ jobs:
           python .github/scripts/test_component_contracts.py
           python .github/scripts/test_ci_tools.py
 
+      - name: Test Windows firmware flasher logic
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./scripts/Flash-CI-Firmware.ps1 -SelfTest
+
       - name: Check first-party Markdown policy
         shell: bash
         run: |

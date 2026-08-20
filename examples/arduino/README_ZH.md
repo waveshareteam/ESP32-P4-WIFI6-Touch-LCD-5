@@ -18,7 +18,9 @@ OV5647 MIPI-CSI 摄像头)的 Arduino 草图与随仓库。
   - `Partition Scheme`:`13M APP / 7M data (32 MB)`
   - `Upload Mode`:`Default (USB-UART 桥接)`
 - 显示类草图要求启用 PSRAM。
-- 如果使用明确的 rev1.3/pre-v3 板,请选择 `Chip Variant: Before v3.00`;该旧 profile 使用 200 MHz PSRAM。两个 profile 不能混用。
+- 对于已确认的 rev1.x ESP32-P4 芯片（包括 rev1.3），请选择
+  `Chip Variant: Before v3.00`；该旧 profile 使用 200 MHz PSRAM。这是芯片设置，
+  不是 PCB revision。两个 profile 不能混用。
 
 ## 示例
 

@@ -43,7 +43,7 @@ required before changing or promoting either version.
 All 12 first-party example defaults target ESP32-P4 rev3.x silicon with the
 `CONFIG_ESP32P4_REV_MIN_300` symbol and 250 MHz PSRAM. The USB extended-screen
 ESP32-P4 overlay carries the same default. The explicit `rev1_3` profile remains
-available for pre-v3 compatibility with 200 MHz PSRAM; CI builds and publishes
+available for rev1.x compatibility with 200 MHz PSRAM; CI builds and publishes
 both profiles, and the firmware flasher selects the matching profile after its
 read-only silicon probe.
 
@@ -63,7 +63,7 @@ IDF matrix; it is not a menuconfig-only change.
 
 The MP4 example fixes `espressif/esp_audio_codec` at 2.5.0. Version 2.6.0 and
 later require ESP32-P4 revision 3 or newer, while the explicit `rev1_3` profile
-retains pre-v3 support. Changing this pin requires hardware-revision evidence
+retains rev1.x support. Changing this pin requires hardware-revision evidence
 and a successful complete IDF matrix.
 
 ## Review rules
