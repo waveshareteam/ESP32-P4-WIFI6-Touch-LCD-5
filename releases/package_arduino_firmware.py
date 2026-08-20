@@ -27,7 +27,7 @@ PRODUCT = "ESP32-P4-WIFI6-Touch-LCD-5"
 ARDUINO_CORE_VERSION = "3.3.11"
 ARDUINO_TARGET = "esp32p4"
 ARDUINO_FQBN = (
-    "esp32:esp32:esp32p4:ChipVariant=prev3,PSRAM=enabled,FlashSize=32M,"
+    "esp32:esp32:esp32p4:ChipVariant=postv3,PSRAM=enabled,FlashSize=32M,"
     "FlashMode=qio,FlashFreq=80,PartitionScheme=app13M_data7M_32MB,"
     "UploadMode=default,UploadSpeed=921600"
 )
