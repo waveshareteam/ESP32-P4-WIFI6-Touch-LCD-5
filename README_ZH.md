@@ -51,13 +51,20 @@
 
 1. 安装受支持的 ESP-IDF 版本并激活其开发环境。
 2. 打开 [`examples/esp-idf/`](examples/esp-idf/) 下的任一工程。
-3. 设置目标芯片，然后构建、烧录并打开串口监视器：
+3. 在工程目录中选择芯片 profile，然后构建、烧录并打开串口监视器。当前开发板默认
+   使用 `rev3_x`；只有 pre-v3 芯片才使用 `rev1_3`：
 
    ```bash
-   idf.py set-target esp32p4
-   idf.py build
-   idf.py flash monitor
+   profile=rev3_x  # 或 rev1_3
+   idf.py -B "build/$profile" \
+     -D "SDKCONFIG=$PWD/build/$profile/sdkconfig" \
+     -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.$profile" \
+     build
+   idf.py -B "build/$profile" -p PORT flash monitor
    ```
+
+   每个 profile 必须使用独立的构建目录和生成的 `sdkconfig`。工程目录中既有的
+   `sdkconfig` 优先级高于 defaults，切换芯片 profile 时不能复用。
 
 完整的环境配置、连接方法和固件烧录步骤请参阅官方产品文档。
 
