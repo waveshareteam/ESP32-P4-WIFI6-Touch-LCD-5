@@ -326,9 +326,11 @@ def build_matrix(selected: list[str]) -> dict[str, list[dict[str, str]]]:
                 "example": example,
                 "project_slug": re.sub(r"[^a-z0-9]+", "-", Path(example).name.lower()).strip("-"),
                 "idf_version": idf_version,
+                "profile": profile,
             }
             for example in selected
             for idf_version in DEFAULT_IDF_VERSIONS
+            for profile in ("rev1_3", "rev3_x")
         ]
     }
 

@@ -1,5 +1,5 @@
 idf_component_register(SRCS "i2s_es8311_example.c"
-                    PRIV_REQUIRES esp_driver_i2s esp_driver_gpio
+                    PRIV_REQUIRES esp_driver_i2s esp_driver_gpio esp_psram
                     EMBED_FILES "canon.pcm")
 idf_build_get_property(build_components BUILD_COMPONENTS)
 if("lvgl__lvgl" IN_LIST build_components)

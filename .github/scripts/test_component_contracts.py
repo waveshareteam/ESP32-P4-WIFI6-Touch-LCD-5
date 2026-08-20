@@ -55,7 +55,15 @@ MP4_AUDIO_MANIFEST = """dependencies:
   espressif/esp_audio_codec:
     version: "2.5.0"
 """
+I2S_MAIN_CMAKE = """idf_component_register(SRCS "i2s_es8311_example.c"
+    PRIV_REQUIRES esp_driver_i2s esp_driver_gpio esp_psram)
+"""
 REVISION_DEFAULTS = """CONFIG_IDF_TARGET="esp32p4"
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n
+CONFIG_ESP32P4_REV_MIN_300=y
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+"""
+REV1_3_DEFAULTS = """CONFIG_IDF_TARGET="esp32p4"
 CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
 CONFIG_ESP32P4_REV_MIN_100=y
 """
@@ -104,6 +112,7 @@ class ContractRepository:
         self.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/systems/speaker/idf_component.yml", BROOKESIA_MANIFEST)
         self.write(CONTRACTS.WIFI_MANIFEST.as_posix(), WIFI_MANIFEST)
         self.write(CONTRACTS.MP4_AUDIO_MANIFEST.as_posix(), MP4_AUDIO_MANIFEST)
+        self.write(CONTRACTS.I2S_MAIN_CMAKE.as_posix(), I2S_MAIN_CMAKE)
         for project in CONTRACTS.ALL_PROJECTS[:6]:
             self.write(
                 f"examples/esp-idf/{project}/sdkconfig.defaults",
@@ -192,17 +201,39 @@ class ComponentContractTests(unittest.TestCase):
 
     def test_obsolete_revision_symbol_is_rejected(self) -> None:
         relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults"
-        self.repo.write(relative, REVISION_DEFAULTS.replace("REV_MIN_100", "REV_MIN_1"))
+        self.repo.write(relative, REVISION_DEFAULTS.replace("REV_MIN_300", "REV_MIN_1"))
         self.assertIn("P4_REVISION_ONE_SYMBOL", self.repo.codes())
 
-    def test_missing_pre_v3_default_is_rejected(self) -> None:
+    def test_missing_rev3_default_is_rejected(self) -> None:
         relative = "examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4"
         self.repo.write(relative, "CONFIG_IDF_TARGET=\"esp32p4\"\n")
-        self.assertIn("P4_PRE_V3_REVISION_DEFAULT", self.repo.codes())
+        self.assertIn("P4_REV3_REVISION_DEFAULT", self.repo.codes())
+
+    def test_rev1_3_is_not_accepted_as_default(self) -> None:
+        relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults"
+        self.repo.write(relative, REV1_3_DEFAULTS)
+        self.assertIn("P4_LEGACY_REVISION_DEFAULT", self.repo.codes())
+
+    def test_rev1_3_overlay_is_accepted(self) -> None:
+        relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults.rev1_3"
+        self.repo.write(relative, REV1_3_DEFAULTS)
+        self.assertNotIn("P4_LEGACY_REVISION_DEFAULT", self.repo.codes())
+
+    def test_bootloader_info_default_is_rejected(self) -> None:
+        relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults"
+        self.repo.write(relative, REVISION_DEFAULTS.replace("CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y", "CONFIG_BOOTLOADER_LOG_LEVEL_INFO=y"))
+        self.assertIn("P4_BOOTLOADER_WARN_DEFAULT", self.repo.codes())
 
     def test_floating_mp4_audio_codec_is_rejected(self) -> None:
         self.repo.write(CONTRACTS.MP4_AUDIO_MANIFEST.as_posix(), MP4_AUDIO_MANIFEST.replace('"2.5.0"', '"^2.3.0"'))
         self.assertIn("MP4_AUDIO_CODEC_VERSION", self.repo.codes())
+
+    def test_missing_i2s_psram_dependency_is_rejected(self) -> None:
+        self.repo.write(
+            CONTRACTS.I2S_MAIN_CMAKE.as_posix(),
+            I2S_MAIN_CMAKE.replace(" esp_psram", ""),
+        )
+        self.assertIn("I2S_PSRAM_COMPONENT_DEPENDENCY", self.repo.codes())
 
     def test_ov5647_portrait_default_is_required(self) -> None:
         support = "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X1280_50FPS=y\n"

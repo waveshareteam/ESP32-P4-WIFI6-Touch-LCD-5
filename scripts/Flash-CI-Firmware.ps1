@@ -18,6 +18,7 @@ $SafeBefore = @('default_reset', 'no_reset', 'default-reset', 'no-reset')
 $SafeAfter = @('hard_reset', 'no_reset', 'hard-reset', 'no-reset')
 $BoardProfiles = @{
     rev1_3 = [pscustomobject]@{ Minimum = '1.0'; MaximumExclusive = '3.0' }
+    rev3_x = [pscustomobject]@{ Minimum = '3.0'; MaximumExclusive = '4.0' }
 }
 $Projects = @(
     'examples/esp-idf/01_HowToCreateProject', 'examples/esp-idf/02_HelloWorld',
@@ -32,8 +33,10 @@ $index = 1
 foreach ($project in $Projects) {
     $slug = (($project.Split('/')[-1].ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-'))
     foreach ($version in @('v5.5.5', 'v6.0.2')) {
-        $Items += [pscustomobject]@{ Index = $index; Workflow = 'esp-idf-examples.yml'; Artifact = "firmware-esp-idf-$slug-$version-rev1_3"; Framework = 'esp-idf'; Version = $version; SourceProject = $project; Profile = 'rev1_3' }
-        $index++
+        foreach ($profile in @('rev1_3', 'rev3_x')) {
+            $Items += [pscustomobject]@{ Index = $index; Workflow = 'esp-idf-examples.yml'; Artifact = "firmware-esp-idf-$slug-$version-$profile"; Framework = 'esp-idf'; Version = $version; SourceProject = $project; Profile = $profile }
+            $index++
+        }
     }
 }
 
@@ -49,7 +52,7 @@ function Get-StatePath([string]$Root, [string]$Profile) {
 }
 function Assert-ProfileForRevision($Revision, $Item) {
     $expected = Get-ProfileForRevision $Revision.Major $Revision.Minor
-    if ($expected -ne $Item.Profile) { throw "ESP32-P4 silicon revision v$($Revision.Major).$($Revision.Minor) requires $expected artifacts, not $($Item.Profile). rev3_x product artifacts are not available in this repository." }
+    if ($expected -ne $Item.Profile) { throw "ESP32-P4 silicon revision v$($Revision.Major).$($Revision.Minor) requires $expected artifacts, not $($Item.Profile)." }
     if (-not $BoardProfiles.ContainsKey($Item.Profile) -or -not (Test-RevisionInRange $Revision.Major $Revision.Minor $BoardProfiles[$Item.Profile].Minimum $BoardProfiles[$Item.Profile].MaximumExclusive)) { throw "ESP32-P4 silicon revision v$($Revision.Major).$($Revision.Minor) is outside the supported $($Item.Profile) range." }
 }
 function ConvertFrom-EsptoolProbe([string]$Output) {
@@ -76,15 +79,15 @@ function Get-NextProgress([int]$CurrentIndex, [int[]]$ConfirmedIndexes, [int]$It
     return [pscustomobject]@{ CurrentIndex = if ($CurrentIndex -eq $ItemCount) { $CurrentIndex } else { $CurrentIndex + 1 }; ConfirmedIndexes = $confirmed; Completed = ($CurrentIndex -eq $ItemCount) }
 }
 function New-ProgressState { return [pscustomobject]@{ CurrentIndex = $DefaultStartIndex; ConfirmedIndexes = @() } }
-function Get-StateForArtifactRun($Saved, [string]$ExpectedSha, [string]$Profile, [string]$RunId) {
+function Get-StateForArtifactRun($Saved, [string]$ExpectedSha, [string]$Profile, [string]$RunId, [int]$ItemCount = $Items.Count) {
     try {
         if (-not $Saved -or -not $Saved.PSObject.Properties['SchemaVersion'] -or [int]$Saved.SchemaVersion -ne 3 -or -not $Saved.PSObject.Properties['Profile'] -or [string]$Saved.Profile -ne $Profile -or -not $Saved.PSObject.Properties['FinalSha'] -or -not $Saved.PSObject.Properties['RunId'] -or -not $Saved.PSObject.Properties['CurrentIndex'] -or -not $Saved.PSObject.Properties['ConfirmedIndexes'] -or [string]$Saved.FinalSha -ne $ExpectedSha -or [string]$Saved.RunId -ne $RunId) {
             return New-ProgressState
         }
         $current = [int]$Saved.CurrentIndex
-        if ($current -lt 1 -or $current -gt $Items.Count) { return New-ProgressState }
-        $confirmed = @($Saved.ConfirmedIndexes | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 1 -and $_ -le $Items.Count } | Sort-Object -Unique)
-        $expected = if ($current -eq $Items.Count -and $confirmed -contains $Items.Count) { @(1..$Items.Count) } elseif ($current -eq 1) { @() } else { @(1..($current - 1)) }
+        if ($current -lt 1 -or $current -gt $ItemCount) { return New-ProgressState }
+        $confirmed = @($Saved.ConfirmedIndexes | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 1 -and $_ -le $ItemCount } | Sort-Object -Unique)
+        $expected = if ($current -eq $ItemCount -and $confirmed -contains $ItemCount) { @(1..$ItemCount) } elseif ($current -eq 1) { @() } else { @(1..($current - 1)) }
         if (@($confirmed).Count -ne @($expected).Count -or @($confirmed | Where-Object { $_ -notin $expected }).Count -ne 0) { return New-ProgressState }
         return [pscustomobject]@{ CurrentIndex = $current; ConfirmedIndexes = $confirmed }
     } catch { return New-ProgressState }
@@ -94,7 +97,7 @@ function Get-StateTempPath([string]$StateFile) { return Join-Path ([System.IO.Pa
 function Test-ArtifactInventory($Inventory) {
     try {
         $expected = @($Items | ForEach-Object { [string]$_.Artifact } | Sort-Object -Unique)
-        if ($expected.Count -ne 24 -or -not $Inventory -or -not $Inventory.PSObject.Properties['TotalCount'] -or -not $Inventory.PSObject.Properties['Artifacts']) { return $false }
+        if ($expected.Count -ne 48 -or -not $Inventory -or -not $Inventory.PSObject.Properties['TotalCount'] -or -not $Inventory.PSObject.Properties['Artifacts']) { return $false }
         $artifacts = @($Inventory.Artifacts)
         if ([int]$Inventory.TotalCount -ne $expected.Count -or $artifacts.Count -ne $expected.Count) { return $false }
         $names = @($artifacts | ForEach-Object { if (-not $_.PSObject.Properties['name'] -or -not $_.PSObject.Properties['expired'] -or $_.expired -ne $false) { throw 'Artifact inventory is incomplete or expired.' }; [string]$_.name })
@@ -102,8 +105,8 @@ function Test-ArtifactInventory($Inventory) {
         return $unique.Count -eq $expected.Count -and @($expected | Where-Object { $_ -notin $unique }).Count -eq 0 -and @($unique | Where-Object { $_ -notin $expected }).Count -eq 0
     } catch { return $false }
 }
-function Test-CompletedState($State) {
-    return $State -and $State.CurrentIndex -eq $Items.Count -and @($State.ConfirmedIndexes | Sort-Object -Unique).Count -eq $Items.Count -and @($State.ConfirmedIndexes | Where-Object { $_ -notin @(1..$Items.Count) }).Count -eq 0
+function Test-CompletedState($State, [int]$ItemCount = $Items.Count) {
+    return $State -and $State.CurrentIndex -eq $ItemCount -and @($State.ConfirmedIndexes | Sort-Object -Unique).Count -eq $ItemCount -and @($State.ConfirmedIndexes | Where-Object { $_ -notin @(1..$ItemCount) }).Count -eq 0
 }
 function Get-FileSha256([string]$Path) {
     $stream = $null; $algorithm = $null
@@ -112,35 +115,43 @@ function Get-FileSha256([string]$Path) {
 }
 
 if ($SelfTest) {
-    if ($Items.Count -ne 24) { throw 'SelfTest expected exactly 24 ESP-IDF items.' }
-    if (@($Items | Where-Object { $_.Profile -ne 'rev1_3' -or $_.Artifact -notmatch '-rev1_3$' }).Count -ne 0) { throw 'SelfTest artifact profile inventory failed.' }
+    if ($Items.Count -ne 48) { throw 'SelfTest expected exactly 48 ESP-IDF items.' }
+    if (@($Items | Where-Object { $_.Profile -notin @('rev1_3', 'rev3_x') -or $_.Artifact -notmatch '-(rev1_3|rev3_x)$' }).Count -ne 0) { throw 'SelfTest artifact profile inventory failed.' }
     $rev1 = ConvertFrom-EsptoolProbe "Chip is ESP32-P4; revision v1.0"
+    $rev1Item = @($Items | Where-Object { $_.Profile -eq 'rev1_3' })[0]
+    Assert-ProfileForRevision $rev1 $rev1Item
     if ((Get-ProfileForRevision $rev1.Major $rev1.Minor) -ne 'rev1_3') { throw 'SelfTest pre-v3 profile mapping failed.' }
-    $rev3Rejected = $false
-    try { Assert-ProfileForRevision (ConvertFrom-EsptoolProbe "ESP32-P4 rev 3.0") $Items[0] } catch { $rev3Rejected = $true }
-    if (-not $rev3Rejected) { throw 'SelfTest rev3_x rejection failed.' }
+    $rev3Item = @($Items | Where-Object { $_.Profile -eq 'rev3_x' })[0]
+    $rev3 = ConvertFrom-EsptoolProbe "ESP32-P4 rev 3.0"
+    Assert-ProfileForRevision $rev3 $rev3Item
+    if ((Get-ProfileForRevision $rev3.Major $rev3.Minor) -ne 'rev3_x') { throw 'SelfTest rev3_x profile mapping failed.' }
     $manifestMismatch = $false
     $manifest = [pscustomobject]@{ board_profile = 'rev3_x'; chip_revision = [pscustomobject]@{ minimum = '3.0'; maximum_exclusive = '4.0' }; c6_firmware_included = $false }
-    if ($manifest.board_profile -ne $Items[0].Profile -or -not (Test-RevisionInRange $rev1.Major $rev1.Minor $manifest.chip_revision.minimum $manifest.chip_revision.maximum_exclusive)) { $manifestMismatch = $true }
+    if ($manifest.board_profile -ne $rev1Item.Profile -or -not (Test-RevisionInRange $rev1.Major $rev1.Minor $manifest.chip_revision.minimum $manifest.chip_revision.maximum_exclusive)) { $manifestMismatch = $true }
     if (-not $manifestMismatch) { throw 'SelfTest manifest profile mismatch failed.' }
     $rev1State = Get-StatePath 'C:\state' 'rev1_3'
     if ($rev1State -notmatch 'state-v3-rev1_3\.json$' -or $rev1State -eq (Join-Path 'C:\state' 'state-v3-rev3_x.json')) { throw 'SelfTest profile state isolation failed.' }
-    $current = 1; $confirmed = @(); $transitions = 0
-    while ($current -lt $Items.Count) { $next = Get-NextProgress $current $confirmed $Items.Count; if ($next.Completed -or $next.CurrentIndex -ne ($current + 1)) { throw 'SelfTest progress transition failed.' }; $current = $next.CurrentIndex; $confirmed = @($next.ConfirmedIndexes); $transitions++ }
-    $last = Get-NextProgress $current $confirmed $Items.Count
-    if (-not $last.Completed -or @($last.ConfirmedIndexes).Count -ne 24) { throw 'SelfTest did not complete all items.' }
+    $profileItemCount = 24
+    foreach ($selectedProfile in @('rev1_3', 'rev3_x')) {
+        $profileItems = @($Items | Where-Object { $_.Profile -eq $selectedProfile })
+        if ($profileItems.Count -ne $profileItemCount -or @($profileItems | Where-Object { $_.Profile -ne $selectedProfile }).Count -ne 0) { throw "SelfTest expected exactly $profileItemCount isolated items for $selectedProfile." }
+        $current = 1; $confirmed = @(); $transitions = 0
+        while ($current -lt $profileItems.Count) { $next = Get-NextProgress $current $confirmed $profileItems.Count; if ($next.Completed -or $next.CurrentIndex -ne ($current + 1)) { throw "SelfTest progress transition failed for $selectedProfile." }; $current = $next.CurrentIndex; $confirmed = @($next.ConfirmedIndexes); $transitions++ }
+        $last = Get-NextProgress $current $confirmed $profileItems.Count
+        if (-not $last.Completed -or @($last.ConfirmedIndexes).Count -ne $profileItemCount) { throw "SelfTest did not complete $selectedProfile." }
+    }
     $reset = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = 'other'; RunId = '101'; CurrentIndex = 4; ConfirmedIndexes = @(1,2,3) }) ('a' * 40) 'rev1_3' '101'
     if ($reset.CurrentIndex -ne 1 -or @($reset.ConfirmedIndexes).Count -ne 0) { throw 'SelfTest SHA reset failed.' }
     $runReset = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = ('a' * 40); RunId = '101'; CurrentIndex = 4; ConfirmedIndexes = @(1,2,3) }) ('a' * 40) 'rev1_3' '102'
     if ($runReset.CurrentIndex -ne 1 -or @($runReset.ConfirmedIndexes).Count -ne 0) { throw 'SelfTest run reset failed.' }
-    $complete = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = ('a' * 40); RunId = '101'; CurrentIndex = 24; ConfirmedIndexes = @(1..24) }) ('a' * 40) 'rev1_3' '101'
-    if (-not (Test-CompletedState $complete)) { throw 'SelfTest completed-state recovery failed.' }
+    $complete = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = ('a' * 40); RunId = '101'; CurrentIndex = 24; ConfirmedIndexes = @(1..24) }) ('a' * 40) 'rev1_3' '101' $profileItemCount
+    if (-not (Test-CompletedState $complete $profileItemCount)) { throw 'SelfTest completed-state recovery failed.' }
     if ($null -ne (ConvertFrom-StateJson '{')) { throw 'SelfTest malformed state reset failed.' }
     if ([System.IO.Path]::GetDirectoryName((Get-StateTempPath 'C:\state\state-v3-rev1_3.json')) -ne 'C:\state') { throw 'SelfTest atomic state temporary path failed.' }
     $fullInventory = [pscustomobject]@{ TotalCount = $Items.Count; Artifacts = @($Items | ForEach-Object { [pscustomobject]@{ name = $_.Artifact; expired = $false } }) }
     if (-not (Test-ArtifactInventory $fullInventory) -or (Test-ArtifactInventory ([pscustomobject]@{ TotalCount = ($Items.Count - 1); Artifacts = @($fullInventory.Artifacts | Select-Object -First ($Items.Count - 1)) }))) { throw 'SelfTest exact artifact inventory failed.' }
     if ((Test-RelativePackagePath 'C:\package' '..\escape.bin') -or (Test-RelativePackagePath 'C:\package' 'C:\escape.bin') -or -not (Test-RelativePackagePath 'C:\package' 'bin\app.bin')) { throw 'SelfTest path boundary failed.' }
-    Write-Output 'SELF_TEST_OK items=24 profile=rev1_3 parser=ok pre_v3=allowed rev3_x=blocked manifest_mismatch=blocked state-v3=profile-isolated transitions=23 sha_reset=ok run_reset=ok malformed_state_reset=ok atomic_state_temp=ok artifact_inventory=24-exact-unexpired completed_recovery=ok path_boundary=ok'
+    Write-Output 'SELF_TEST_OK items=48 profile_items=24 profiles=rev1_3,rev3_x parser=ok pre_v3=allowed rev3_x=allowed manifest_mismatch=blocked state-v3=profile-isolated transitions=23 sha_reset=ok run_reset=ok malformed_state_reset=ok atomic_state_temp=ok artifact_inventory=48-exact-unexpired completed_recovery=ok path_boundary=ok'
     return
 }
 if ($ListOnly) {
@@ -203,14 +214,14 @@ function Resolve-ArtifactRun([string]$GhExe, [string]$FinalSha) {
         } catch { throw "Unable to parse artifacts for successful workflow run $($run.databaseId)." }
         if (Test-ArtifactInventory $inventory) { return [string]$run.databaseId }
     }
-    throw 'No successful exact-SHA workflow run reports exactly the 24 expected unique, unexpired firmware artifacts; partial dispatch runs are rejected.'
+    throw 'No successful exact-SHA workflow run reports exactly the 48 expected unique, unexpired firmware artifacts; partial dispatch runs are rejected.'
 }
-function Read-State([string]$FinalSha, [string]$Profile, [string]$RunId) {
+function Read-State([string]$FinalSha, [string]$Profile, [string]$RunId, [int]$ItemCount) {
     $saved = $null
     if (Test-Path -LiteralPath $StatePath) {
         try { $saved = ConvertFrom-StateJson ([System.IO.File]::ReadAllText($StatePath)) } catch { return New-ProgressState }
     }
-    return Get-StateForArtifactRun $saved $FinalSha $Profile $RunId
+    return Get-StateForArtifactRun $saved $FinalSha $Profile $RunId $ItemCount
 }
 function Save-State([int]$CurrentIndex, [int[]]$ConfirmedIndexes, [string]$FinalSha, [string]$Profile, [string]$RunId) {
     $stateDirectory = [System.IO.Path]::GetDirectoryName($StatePath)
@@ -288,19 +299,22 @@ $GitExe = Resolve-Git; $FinalSha = Resolve-FinalSha $GitExe; $Branch = Assert-Cl
 $PythonExe = Resolve-PythonWithEsptool
 $revision = Invoke-EsptoolProbe $PythonExe $Port
 $DetectedProfile = Get-ProfileForRevision $revision.Major $revision.Minor
-if ($DetectedProfile -ne 'rev1_3') { throw "ESP32-P4 silicon revision v$($revision.Major).$($revision.Minor) maps to $DetectedProfile, but no rev3_x product artifact is maintained by this repository. Silicon revision does not replace PCB/electrical revision confirmation." }
+if (-not $BoardProfiles.ContainsKey($DetectedProfile)) { throw "Unsupported ESP32-P4 silicon revision profile: $DetectedProfile." }
+Write-Warning 'Silicon revision does not replace PCB/electrical revision confirmation.'
+$ProfileItems = @($Items | Where-Object { $_.Profile -eq $DetectedProfile })
+if ($ProfileItems.Count -ne 24) { throw "Expected exactly 24 CI firmware items for $DetectedProfile." }
 $StatePath = Get-StatePath $StateRoot $DetectedProfile
 $GhExe = Resolve-Gh; Assert-ReadyPullRequest $GhExe $Branch $FinalSha; $Run = Resolve-ArtifactRun $GhExe $FinalSha
-$state = Read-State $FinalSha $DetectedProfile $Run
-if (Test-CompletedState $state) { Write-Output "All $($Items.Count) $DetectedProfile CI firmware items are already confirmed for $FinalSha from workflow run $Run."; return }
+$state = Read-State $FinalSha $DetectedProfile $Run $ProfileItems.Count
+if (Test-CompletedState $state $ProfileItems.Count) { Write-Output "All $($ProfileItems.Count) $DetectedProfile CI firmware items are already confirmed for $FinalSha from workflow run $Run."; return }
 while ($true) {
-    $item = $Items[$state.CurrentIndex - 1]
-    Write-Output "Current $($item.Index)/$($Items.Count): $($item.Artifact)"
+    $item = $ProfileItems[$state.CurrentIndex - 1]
+    Write-Output "Current $($state.CurrentIndex)/$($ProfileItems.Count): $($item.Artifact)"
     $result = Invoke-CurrentFlash $item $GhExe $PythonExe $Run $FinalSha
     Write-Output $result.Output
     if (-not $result.Success) { throw 'Flash was not accepted: esptool must exit 0 and report Hash of data verified.' }
     if ((Read-Host 'After manual hardware verification, type PASS to advance') -cne 'PASS') { Write-Output 'Not advanced; manual PASS was not provided.'; return }
-    $state = Get-NextProgress $state.CurrentIndex $state.ConfirmedIndexes $Items.Count
+    $state = Get-NextProgress $state.CurrentIndex $state.ConfirmedIndexes $ProfileItems.Count
     Save-State $state.CurrentIndex $state.ConfirmedIndexes $FinalSha $DetectedProfile $Run
-    if ($state.Completed) { Write-Output "All $($Items.Count) CI firmware items passed manual verification."; return }
+    if ($state.Completed) { Write-Output "All $($ProfileItems.Count) $DetectedProfile CI firmware items passed manual verification."; return }
 }

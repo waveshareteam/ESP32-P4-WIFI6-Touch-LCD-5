@@ -7,6 +7,7 @@
 - [CI 发现与路由](CI_ZH.md)
 - [组件归属与依赖策略](COMPONENTS_ZH.md)
 - [基于原理图的硬件核验](HARDWARE_ZH.md)
+- [板级 IO 列表](IO_ZH.md)
 - [ESP32-P4 与 ESP32-C6 Hosted Wi-Fi 兼容性](P4_C6_HOSTED_WIFI_ZH.md)
 
 环境配置、接线、烧录和产品使用方法请参阅

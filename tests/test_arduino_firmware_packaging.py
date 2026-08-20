@@ -15,7 +15,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCT_SHA = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
 FQBN = (
-    "esp32:esp32:esp32p4:ChipVariant=prev3,PSRAM=enabled,FlashSize=32M,"
+    "esp32:esp32:esp32p4:ChipVariant=postv3,PSRAM=enabled,FlashSize=32M,"
     "FlashMode=qio,FlashFreq=80,PartitionScheme=app13M_data7M_32MB,"
     "UploadMode=default,UploadSpeed=921600"
 )

@@ -15,8 +15,8 @@ product examples, and cannot be selected through manual workflow dispatch.
 
 | Framework line | Exact CI release | First-party projects | Build jobs |
 | --- | --- | ---: | ---: |
-| ESP-IDF 5.5 | v5.5.5 | 12 | 12 |
-| ESP-IDF 6.0 | v6.0.2 | 12 | 12 |
+| ESP-IDF 5.5 | v5.5.5 | 12 | 24 (12 × 2 profiles) |
+| ESP-IDF 6.0 | v6.0.2 | 12 | 24 (12 × 2 profiles) |
 
 The exact tags are reviewed when the workflow is updated. A successful build
 proves compile compatibility for the checked-out commit; it does not prove
@@ -73,20 +73,22 @@ unfamiliar paths, and incomplete diff data.
 ## Managed component versions and revision defaults
 
 Display examples 07–12 resolve the LCD5 BSP `^1.0.3` and the HX8394 driver
-`^2.1.0` from the ESP Component Registry (waveshare namespace). Their defaults
-select the revision-1.3/pre-v3 product profile; product-firmware revision jobs
-are not included because this repository has no maintained product firmware
-source.
+`^2.1.0` from the ESP Component Registry (waveshare namespace). Their default
+source configuration selects rev3.x, while an explicit `rev1_3` overlay preserves
+pre-v3 example compatibility. Independent product-firmware revision jobs remain
+outside this example CI change.
 
-The example bundles default to the `rev1_3` (pre-v3) profile. A `rev3_x` product
-artifact is intentionally absent: no maintained product-firmware source has
-been designated in this repository.
+The example bundles are built and published for both explicit profiles: `rev1_3`
+(`[1.0, 3.0)`, 200 MHz PSRAM) and `rev3_x` (`[3.0, 4.0)`, 250 MHz PSRAM).
+The default source configuration is rev3.x; profile-specific CI overlays prevent
+accidentally using the wrong silicon settings.
 
 ## CI firmware bundles and manual hardware verification
 
-Each required ESP-IDF build also creates one artifact named
-`firmware-esp-idf-<project-slug>-<version>-rev1_3`. The 12 direct projects and two
-ESP-IDF releases therefore create 24 independently traceable bundles. The
+Each required ESP-IDF build creates one artifact per profile named
+`firmware-esp-idf-<project-slug>-<version>-<profile>`. The 12 direct projects, two
+ESP-IDF releases, and two profiles therefore create 48 independently traceable
+bundles. The
 bundle is generated from that build's `flasher_args.json`; it preserves the
 actual offsets rather than assuming fixed ESP32-P4 offsets, and includes
 `bin/**`, `manifest.json`, and `metadata/flasher_args.json`.
@@ -97,10 +99,10 @@ command: use only the root `Flash-CI-Firmware.cmd` entry point, which delegates
 to the checked-in PowerShell orchestrator and requires an explicit `COMx` port.
 Packaging requires the actual generated build configuration (`build/config/sdkconfig.json`,
 or generated `build/sdkconfig` fallback) to contain
-`CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y` and `CONFIG_ESP32P4_REV_MIN_100=y`; source
-defaults are not accepted as evidence. The inner ZIP name and manifest also carry
-`board_profile: rev1_3`, revision range `[1.0, 3.0)`, and
-`c6_firmware_included: false`.
+the symbols for the selected profile (`rev1_3`: `SELECTS_REV_LESS_V3=y` and
+`REV_MIN_100=y`; `rev3_x`: `SELECTS_REV_LESS_V3=n` and `REV_MIN_300=y`); source
+defaults are not accepted as evidence. The inner ZIP name and manifest carry the
+selected profile and its revision range, plus `c6_firmware_included: false`.
 
 Before manually testing, install GitHub CLI and Python with esptool, then sign
 in with `gh auth login`. From a clean, non-detached branch with exactly one
@@ -115,16 +117,16 @@ Flash-CI-Firmware.cmd -Port COMx [-Baud N]
 `-SelfTest` and `-ListOnly` are offline checks: they do not access GitHub,
 serial devices, or artifacts. Normal mode requires the explicit placeholder
 `COMx`; it never guesses a serial device. It accepts only a successful workflow
-run for the final PR HEAD SHA that reports exactly the complete set of 24 unique,
+run for the final PR HEAD SHA that reports exactly the complete set of 48 unique,
 unexpired expected firmware artifacts; partial dispatch runs are rejected. It
 then downloads only the selected exact artifact, verifies the manifest identity,
 checks every relative binary path, size, SHA-256, offset, overlap, and 32 MiB
 flash boundary, then requires both a successful esptool exit code and
 `Hash of data verified`. Before any artifact download or flash, it performs the
 read-only `esptool chip_id` ESP32-P4 probe (using `chip-id` only as a compatibility
-fallback), parses the silicon revision, and accepts only `< 3.0` for `rev1_3`.
-Silicon `>= 3.0` maps to `rev3_x` and is refused because that product artifact is
-not available. The silicon check does not replace PCB/electrical revision
+fallback), parses the silicon revision, and selects `rev1_3` for `< 3.0` and
+`rev3_x` for `>= 3.0`; the manifest range check then rejects a profile mismatch.
+The silicon check does not replace PCB/electrical revision
 confirmation. After each flash, the user must manually inspect the hardware and
 type `PASS`; progress is profile-isolated local application data and resets for
 a different final SHA, selected workflow run, profile, malformed/truncated
@@ -132,5 +134,6 @@ saved state, or legacy state schema. State writes use a same-directory temporary
 file followed by an atomic replace or move.
 
 These CI bundles are test outputs, not the checked-in factory firmware. The CI
-build and integrity gates do not perform physical testing; all 24 hardware
-checks remain an explicit user action.
+build and integrity gates do not perform physical testing. A board runs the 24
+checks matching its detected profile; validating both profiles requires 48
+explicit hardware checks across suitable boards.

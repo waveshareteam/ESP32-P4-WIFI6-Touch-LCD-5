@@ -40,12 +40,12 @@ required before changing or promoting either version.
 
 ## ESP32-P4 revision defaults
 
-All 12 first-party example defaults target ESP32-P4 pre-v3 silicon with the
-revision-1.0 minimum symbol; the product's default example profile is revision
-1.3/pre-v3. The USB extended-screen ESP32-P4 profile carries the same default.
-No maintained revision-3 product firmware source is present in this repository,
-so revision-specific product-firmware jobs, artifacts, and flasher probes are
-outside this example migration.
+All 12 first-party example defaults target ESP32-P4 rev3.x silicon with the
+`CONFIG_ESP32P4_REV_MIN_300` symbol and 250 MHz PSRAM. The USB extended-screen
+ESP32-P4 overlay carries the same default. The explicit `rev1_3` profile remains
+available for pre-v3 compatibility with 200 MHz PSRAM; CI builds and publishes
+both profiles, and the firmware flasher selects the matching profile after its
+read-only silicon probe.
 
 ## Brookesia dependency contract
 
@@ -62,13 +62,13 @@ IDF matrix; it is not a menuconfig-only change.
 ## MP4 audio codec boundary
 
 The MP4 example fixes `espressif/esp_audio_codec` at 2.5.0. Version 2.6.0 and
-later require ESP32-P4 revision 3 or newer, while the example defaults retain
-pre-v3 support. Changing this pin requires hardware-revision evidence and a
-successful complete IDF matrix.
+later require ESP32-P4 revision 3 or newer, while the explicit `rev1_3` profile
+retains pre-v3 support. Changing this pin requires hardware-revision evidence
+and a successful complete IDF matrix.
 
 ## Review rules
 
 - Do not edit embedded upstream documentation or license files as product-local translations.
-- Keep the exact temporary source pin until a separately reviewed replacement is available.
+- Component manifests intended for Registry publication must depend only on already published Registry versions; do not ship temporary Git or path dependencies.
 - Treat source-level initialization selection and successful CI as compile evidence only; require HIL for display behavior.
 - Keep version-range rationale and its revisit condition beside the manifest.

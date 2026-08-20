@@ -1,3 +1,5 @@
+[简体中文](README_ZH.md) · [Repository home](../../README.md)
+
 # Arduino Examples
 
 Arduino sketches and bundled libraries for the Waveshare ESP32-P4-WIFI6-Touch-LCD-5
@@ -8,7 +10,7 @@ Arduino sketches and bundled libraries for the Waveshare ESP32-P4-WIFI6-Touch-LC
 - Arduino-ESP32 core `3.3.11` (or newer 3.x).
 - Board: `ESP32P4 Dev Module` (`esp32:esp32:esp32p4`).
 - Menu options:
-  - `Chip Variant`: `Before v3.00` (rev 1.3 boards)
+  - `Chip Variant`: `v3.00 or newer` (rev3.x boards; default)
   - `PSRAM`: `Enabled`
   - `Flash Size`: `32 MB`
   - `Flash Mode`: `QIO`
@@ -16,6 +18,7 @@ Arduino sketches and bundled libraries for the Waveshare ESP32-P4-WIFI6-Touch-LC
   - `Partition Scheme`: `13M APP / 7M data (32 MB)`
   - `Upload Mode`: `Default (USB-UART bridge)`
 - Enable PSRAM in the board settings; the display sketches require it.
+- For an explicit rev1.3/pre-v3 board, select `Chip Variant: Before v3.00`; that legacy profile uses 200 MHz PSRAM. Do not mix the two profiles.
 
 ## Examples
 
@@ -48,6 +51,13 @@ frames which the ISP pipeline converts to RGB565 for the display. `07_Camera_ISP
 adds interactive controls over the serial monitor: `g` gain, `e` exposure (µs),
 `a` AE target level, `v/h` flip, `t` test pattern, `s` status.
 
+## Touch notes
+
+The bundled GT911 driver probes both legal I2C addresses, `0x5D` and `0x14`,
+because the current Arduino configuration does not actively drive touch RST/INT.
+If neither address responds, touch examples report the condition and continue
+without touch instead of aborting. Coordinate behavior still requires board testing.
+
 ## Bundled libraries
 
 - `displays/` — board display/touch/I2C configuration and drivers (HX8394 DSI init,
@@ -55,5 +65,5 @@ adds interactive controls over the serial monitor: `g` gain, `e` exposure (µs),
 - `GFX_Library_for_Arduino` — Arduino_GFX with ESP32-P4 MIPI-DSI panel support
 - `lvgl` + `lv_conf.h` — LVGL 9 for the `04_LVGLV9_Arduino` sketch
 
-See the [main README](../README.md) and the [official product documentation]
+See the [main README](../../README.md) and the [official product documentation]
 (https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5) for hardware details.

@@ -201,7 +201,8 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
 
     /* Any touch data? */
     if ((buf[0] & 0x80) == 0x00) {
-        touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+        err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+        ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
 #if (ESP_LCD_TOUCH_MAX_BUTTONS > 0)
     } else if ((buf[0] & 0x10) == 0x10) {
         /* Read all keys */
@@ -211,7 +212,7 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
         ESP_RETURN_ON_ERROR(err, TAG, "I2C read error!");
 
         /* Clear all */
-        touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+        err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
         ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
 
         portENTER_CRITICAL(&tp->data.lock);
@@ -219,7 +220,7 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
         /* Buttons count */
         tp->data.buttons = key_max;
         for (i = 0; i < key_max; i++) {
-            tp->data.button[i].status = buf[0] ? 1 : 0;
+            tp->data.button[i].status = buf[i] ? 1 : 0;
         }
 
         portEXIT_CRITICAL(&tp->data.lock);
@@ -235,7 +236,8 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
         /* Count of touched points */
         touch_cnt = buf[0] & 0x0f;
         if (touch_cnt > 5 || touch_cnt == 0) {
-            touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+            err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+            ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
             return ESP_OK;
         }
 
@@ -245,7 +247,7 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
 
         /* Clear all */
         err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
-        ESP_RETURN_ON_ERROR(err, TAG, "I2C read error!");
+        ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
 
         portENTER_CRITICAL(&tp->data.lock);
 
@@ -307,7 +309,7 @@ static esp_err_t esp_lcd_touch_gt911_get_button_state(esp_lcd_touch_handle_t tp,
 
     portENTER_CRITICAL(&tp->data.lock);
 
-    if (n > tp->data.buttons) {
+    if (n >= tp->data.buttons) {
         err = ESP_ERR_INVALID_ARG;
     } else {
         *state = tp->data.button[n].status;
@@ -345,17 +347,41 @@ static esp_err_t esp_lcd_touch_gt911_del(esp_lcd_touch_handle_t tp)
 esp_lcd_touch_handle_t touch_gt911_init(DEV_I2C_Port port)
 {
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;  // Declare a handle for touch panel I/O
-    // Configure the I2C communication settings for the GT911 touch controller
-    const esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
+    // The controller can use either legal GT911 address when INT/RST are not
+    // controlled during reset. Probe both addresses before creating panel IO.
+    if (port.bus == NULL) {
+        ESP_LOGE(TAG, "GT911 initialization skipped: I2C bus is unavailable");
+        return NULL;
+    }
+
+    delay(200);
+    uint8_t address = 0;
+    if (i2c_master_probe(port.bus, ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS, 100) == ESP_OK) {
+        address = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS;
+    } else if (i2c_master_probe(port.bus, ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS_BACKUP, 100) == ESP_OK) {
+        address = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS_BACKUP;
+    } else {
+        ESP_LOGE(TAG, "GT911 not found at 0x%02X or 0x%02X",
+                 ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS,
+                 ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS_BACKUP);
+        return NULL;
+    }
+
+    ESP_LOGI(TAG, "GT911 found at 0x%02X", address);
+    const esp_lcd_panel_io_i2c_config_t tp_io_config =
+        ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG_WITH_ADDRESS(address);
 
     // Reset the touch screen before usage
     delay(10);
     // DEV_GPIO_Mode(EXAMPLE_PIN_NUM_TOUCH_INT, GPIO_MODE_INPUT_OUTPUT);  // Set GPIO pin mode for interrupt
     delay(200);  // Wait for 200ms to ensure the touch controller is ready
 
-    ESP_LOGI(TAG, "Initialize I2C panel IO");  // Log I2C panel I/O initialization
-    // Create a new I2C panel I/O handle for the touch controller
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(port.bus, &tp_io_config, &tp_io_handle));
+    ESP_LOGI(TAG, "Initialize I2C panel IO");
+    esp_err_t ret = esp_lcd_new_panel_io_i2c(port.bus, &tp_io_config, &tp_io_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Create GT911 panel IO failed: %s", esp_err_to_name(ret));
+        return NULL;
+    }
 
     ESP_LOGI(TAG, "Initialize touch controller GT911");  // Log touch controller initialization
     // Configure the touch controller with necessary settings (coordinates, GPIO pins, etc.)
@@ -376,7 +402,13 @@ esp_lcd_touch_handle_t touch_gt911_init(DEV_I2C_Port port)
     };
 
     // Create a new touch controller instance using the configured I2C and settings
-    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, &tp_handle));
+    ret = esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, &tp_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Initialize GT911 failed: %s", esp_err_to_name(ret));
+        esp_lcd_panel_io_del(tp_io_handle);
+        tp_handle = NULL;
+        return NULL;
+    }
 
     return tp_handle;  // Return the touch controller handle
 }
@@ -384,10 +416,14 @@ esp_lcd_touch_handle_t touch_gt911_init(DEV_I2C_Port port)
 // Function to read touch points from the GT911 touch controller
 touch_gt911_point_t touch_gt911_read_point(uint8_t max_touch_cnt)
 {
-    touch_gt911_point_t data;  // Declare a structure to hold touch point data
+    touch_gt911_point_t data = {};
+
+    if (tp_handle == NULL || max_touch_cnt == 0) {
+        return data;
+    }
 
     /* Read touch data from the touch controller */
-    esp_lcd_touch_read_data(tp_handle);  // Read raw data from the touch controller
+    esp_lcd_touch_read_data(tp_handle);
 
     /* Get the touch coordinates and count of touch points */
     esp_lcd_touch_get_coordinates(tp_handle, data.x, data.y, NULL, &data.cnt, max_touch_cnt);

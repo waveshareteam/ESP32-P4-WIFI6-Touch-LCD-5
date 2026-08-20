@@ -14,6 +14,7 @@ BROOKESIA_ROOT = Path("examples/esp-idf/11_esp_brookesia_phone/components/brooke
 BROOKESIA_SPEAKER_MANIFEST = BROOKESIA_ROOT / "systems/speaker/idf_component.yml"
 WIFI_MANIFEST = Path("examples/esp-idf/04_wifistation/main/idf_component.yml")
 MP4_AUDIO_MANIFEST = Path("examples/esp-idf/10_mp4_player/main/idf_component.yml")
+I2S_MAIN_CMAKE = Path("examples/esp-idf/06_I2SCodec/main/CMakeLists.txt")
 VIDEO_DEFAULTS = Path("examples/esp-idf/09_video_lcd_display/sdkconfig.defaults")
 BROOKESIA_MAIN = Path("examples/esp-idf/11_esp_brookesia_phone/main/main.cpp")
 BROOKESIA_DEFAULTS = Path("examples/esp-idf/11_esp_brookesia_phone/sdkconfig.defaults")
@@ -153,19 +154,36 @@ def check_managed_components(repo: Path) -> list[Finding]:
 
 def check_revision_defaults(repo: Path) -> list[Finding]:
     findings: list[Finding] = []
-    required = ('CONFIG_IDF_TARGET="esp32p4"', "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y", "CONFIG_ESP32P4_REV_MIN_100=y")
+    revision_required = (
+        'CONFIG_IDF_TARGET="esp32p4"',
+        "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n",
+        "CONFIG_ESP32P4_REV_MIN_300=y",
+    )
     for project in ALL_PROJECTS:
         relative = Path(f"examples/esp-idf/{project}/sdkconfig.defaults")
         content = read(repo, relative)
-        if any(marker not in content for marker in required):
-            findings.append(Finding(relative.as_posix(), "P4_PRE_V3_REVISION_DEFAULT", "require esp32p4, pre-v3 selection, and revision 1.0 default"))
+        if any(marker not in content for marker in revision_required):
+            findings.append(Finding(relative.as_posix(), "P4_REV3_REVISION_DEFAULT", "require esp32p4, rev3.x selection, and revision 3.0 default"))
+        if "CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y" not in content:
+            findings.append(Finding(relative.as_posix(), "P4_BOOTLOADER_WARN_DEFAULT", "keep the ESP32-P4 bootloader below the default partition-table boundary"))
     alternate = Path("examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4")
     content = read(repo, alternate)
-    if any(marker not in content for marker in required):
-        findings.append(Finding(alternate.as_posix(), "P4_PRE_V3_REVISION_DEFAULT", "require the same pre-v3 revision default as the top-level profile"))
+    if any(marker not in content for marker in revision_required[1:]):
+        findings.append(Finding(alternate.as_posix(), "P4_REV3_REVISION_DEFAULT", "require the rev3.x revision default in the ESP32-P4 overlay"))
     for path in repo.glob("examples/esp-idf/*/sdkconfig.defaults*"):
-        if path.is_file() and re.search(r"(?m)^CONFIG_ESP32P4_REV_MIN_1=y\s*$", path.read_text(encoding="utf-8")):
-            findings.append(Finding(path.relative_to(repo).as_posix(), "P4_REVISION_ONE_SYMBOL", "use CONFIG_ESP32P4_REV_MIN_100=y, not the obsolete revision symbol"))
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            relative_path = path.relative_to(repo).as_posix()
+            if re.search(r"(?m)^CONFIG_ESP32P4_REV_MIN_1=y\s*$", text):
+                findings.append(Finding(relative_path, "P4_REVISION_ONE_SYMBOL", "use an explicit supported revision symbol, not the obsolete revision symbol"))
+            # Legacy symbols are valid only in a deliberately named compatibility
+            # overlay. The default file and the ESP32-P4 USB overlay must remain
+            # rev3.x so an unqualified build targets current silicon.
+            if not path.name.endswith(".rev1_3") and (
+                "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y" in text
+                or "CONFIG_ESP32P4_REV_MIN_100=y" in text
+            ):
+                findings.append(Finding(relative_path, "P4_LEGACY_REVISION_DEFAULT", "rev1_3 must remain an explicit overlay, not the default example profile"))
     return findings
 
 
@@ -182,6 +200,21 @@ def check_mp4_audio_codec(repo: Path) -> list[Finding]:
     if dependency and 'version: "2.5.0"' in dependency:
         return []
     return [Finding(MP4_AUDIO_MANIFEST.as_posix(), "MP4_AUDIO_CODEC_VERSION", "ESP32-P4 revision 1/2 compatibility requires esp_audio_codec 2.5.0")]
+
+
+def check_i2s_psram_dependency(repo: Path) -> list[Finding]:
+    cmake = read(repo, I2S_MAIN_CMAKE)
+    registration = re.search(r"(?s)idf_component_register\((.*?)\)", cmake)
+    if registration and re.search(
+        r"\b(?:PRIV_REQUIRES|REQUIRES)\b[^)]*\besp_psram\b",
+        registration.group(1),
+    ):
+        return []
+    return [Finding(
+        I2S_MAIN_CMAKE.as_posix(),
+        "I2S_PSRAM_COMPONENT_DEPENDENCY",
+        "require esp_psram explicitly so ESP-IDF 6 exposes the configured PSRAM symbols",
+    )]
 
 
 def check_display_resolution_contracts(repo: Path) -> list[Finding]:
@@ -252,7 +285,7 @@ def check_display_resolution_contracts(repo: Path) -> list[Finding]:
 
 def run(repo: Path) -> list[Finding]:
     repo = repo.resolve()
-    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_display_resolution_contracts(repo)})
+    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_i2s_psram_dependency(repo), *check_display_resolution_contracts(repo)})
 
 
 def main() -> int:
