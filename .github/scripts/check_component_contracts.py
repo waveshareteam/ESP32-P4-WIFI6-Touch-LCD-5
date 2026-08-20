@@ -14,6 +14,7 @@ BROOKESIA_ROOT = Path("examples/esp-idf/11_esp_brookesia_phone/components/brooke
 BROOKESIA_SPEAKER_MANIFEST = BROOKESIA_ROOT / "systems/speaker/idf_component.yml"
 WIFI_MANIFEST = Path("examples/esp-idf/04_wifistation/main/idf_component.yml")
 MP4_AUDIO_MANIFEST = Path("examples/esp-idf/10_mp4_player/main/idf_component.yml")
+I2S_MAIN_CMAKE = Path("examples/esp-idf/06_I2SCodec/main/CMakeLists.txt")
 VIDEO_DEFAULTS = Path("examples/esp-idf/09_video_lcd_display/sdkconfig.defaults")
 BROOKESIA_MAIN = Path("examples/esp-idf/11_esp_brookesia_phone/main/main.cpp")
 BROOKESIA_DEFAULTS = Path("examples/esp-idf/11_esp_brookesia_phone/sdkconfig.defaults")
@@ -201,6 +202,21 @@ def check_mp4_audio_codec(repo: Path) -> list[Finding]:
     return [Finding(MP4_AUDIO_MANIFEST.as_posix(), "MP4_AUDIO_CODEC_VERSION", "ESP32-P4 revision 1/2 compatibility requires esp_audio_codec 2.5.0")]
 
 
+def check_i2s_psram_dependency(repo: Path) -> list[Finding]:
+    cmake = read(repo, I2S_MAIN_CMAKE)
+    registration = re.search(r"(?s)idf_component_register\((.*?)\)", cmake)
+    if registration and re.search(
+        r"\b(?:PRIV_REQUIRES|REQUIRES)\b[^)]*\besp_psram\b",
+        registration.group(1),
+    ):
+        return []
+    return [Finding(
+        I2S_MAIN_CMAKE.as_posix(),
+        "I2S_PSRAM_COMPONENT_DEPENDENCY",
+        "require esp_psram explicitly so ESP-IDF 6 exposes the configured PSRAM symbols",
+    )]
+
+
 def check_display_resolution_contracts(repo: Path) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -269,7 +285,7 @@ def check_display_resolution_contracts(repo: Path) -> list[Finding]:
 
 def run(repo: Path) -> list[Finding]:
     repo = repo.resolve()
-    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_display_resolution_contracts(repo)})
+    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_i2s_psram_dependency(repo), *check_display_resolution_contracts(repo)})
 
 
 def main() -> int:

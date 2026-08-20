@@ -55,6 +55,9 @@ MP4_AUDIO_MANIFEST = """dependencies:
   espressif/esp_audio_codec:
     version: "2.5.0"
 """
+I2S_MAIN_CMAKE = """idf_component_register(SRCS "i2s_es8311_example.c"
+    PRIV_REQUIRES esp_driver_i2s esp_driver_gpio esp_psram)
+"""
 REVISION_DEFAULTS = """CONFIG_IDF_TARGET="esp32p4"
 CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n
 CONFIG_ESP32P4_REV_MIN_300=y
@@ -109,6 +112,7 @@ class ContractRepository:
         self.write("examples/esp-idf/11_esp_brookesia_phone/components/brookesia_core/systems/speaker/idf_component.yml", BROOKESIA_MANIFEST)
         self.write(CONTRACTS.WIFI_MANIFEST.as_posix(), WIFI_MANIFEST)
         self.write(CONTRACTS.MP4_AUDIO_MANIFEST.as_posix(), MP4_AUDIO_MANIFEST)
+        self.write(CONTRACTS.I2S_MAIN_CMAKE.as_posix(), I2S_MAIN_CMAKE)
         for project in CONTRACTS.ALL_PROJECTS[:6]:
             self.write(
                 f"examples/esp-idf/{project}/sdkconfig.defaults",
@@ -223,6 +227,13 @@ class ComponentContractTests(unittest.TestCase):
     def test_floating_mp4_audio_codec_is_rejected(self) -> None:
         self.repo.write(CONTRACTS.MP4_AUDIO_MANIFEST.as_posix(), MP4_AUDIO_MANIFEST.replace('"2.5.0"', '"^2.3.0"'))
         self.assertIn("MP4_AUDIO_CODEC_VERSION", self.repo.codes())
+
+    def test_missing_i2s_psram_dependency_is_rejected(self) -> None:
+        self.repo.write(
+            CONTRACTS.I2S_MAIN_CMAKE.as_posix(),
+            I2S_MAIN_CMAKE.replace(" esp_psram", ""),
+        )
+        self.assertIn("I2S_PSRAM_COMPONENT_DEPENDENCY", self.repo.codes())
 
     def test_ov5647_portrait_default_is_required(self) -> None:
         support = "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X1280_50FPS=y\n"
