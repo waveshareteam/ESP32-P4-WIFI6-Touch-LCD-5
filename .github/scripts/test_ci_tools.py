@@ -27,7 +27,7 @@ packager = load_module("p4_firmware_packager", REPO_ROOT / "releases/package_fir
 
 
 class PackageTests(unittest.TestCase):
-    def package(self, root: Path, files: dict[str, str], version: str = "v5.5.5", write_args: object | None = None, extra_args: object | None = None, sdkconfig: object | None = None) -> Path:
+    def package(self, root: Path, files: dict[str, str], version: str = "v5.5.5", write_args: object | None = None, extra_args: object | None = None, sdkconfig: object | None = None, profile: str = "rev1_3") -> Path:
         project = Path("examples/esp-idf/01_Demo")
         build = project / "build"
         for relative, content in files.items():
@@ -43,12 +43,13 @@ class PackageTests(unittest.TestCase):
         (root / build / "flasher_args.json").write_text(json.dumps(payload), encoding="utf-8")
         config = root / build / "config"
         config.mkdir(parents=True, exist_ok=True)
-        (config / "sdkconfig.json").write_text(json.dumps({"ESP32P4_SELECTS_REV_LESS_V3": True, "ESP32P4_REV_MIN_100": True} if sdkconfig is None else sdkconfig), encoding="utf-8")
+        default_config = {"ESP32P4_SELECTS_REV_LESS_V3": profile == "rev1_3", "ESP32P4_REV_MIN_100": profile == "rev1_3", "ESP32P4_REV_MIN_300": profile == "rev3_x"}
+        (config / "sdkconfig.json").write_text(json.dumps(default_config if sdkconfig is None else sdkconfig), encoding="utf-8")
         with mock.patch.dict(os.environ, {"PACKAGE_GIT_SHA": "a" * 40}, clear=False):
             old_cwd = Path.cwd()
             os.chdir(root)
             try:
-                return packager.package_esp_idf(project, build, version, Path("out"), "rev1_3")
+                return packager.package_esp_idf(project, build, version, Path("out"), profile)
             finally:
                 os.chdir(old_cwd)
 
@@ -71,6 +72,16 @@ class PackageTests(unittest.TestCase):
             self.assertEqual([item["offset"] for item in manifest["files"]], ["0x0", "0x10000"])
             self.assertEqual(manifest["files"][1]["sha256"], hashlib.sha256(b"application").hexdigest())
             self.assertTrue(bundle.name.endswith("-rev1_3.zip"))
+
+    def test_both_revision_profiles_have_distinct_manifest_ranges(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bundle = self.package(root, {"bootloader/bootloader.bin": "boot", "demo.bin": "application"}, profile="rev3_x")
+            with zipfile.ZipFile(root / bundle) as archive:
+                manifest = json.loads(archive.read("manifest.json"))
+            self.assertEqual(manifest["board_profile"], "rev3_x")
+            self.assertEqual(manifest["chip_revision"], {"minimum": "3.0", "maximum_exclusive": "4.0"})
+            self.assertTrue(bundle.name.endswith("-rev3_x.zip"))
 
     def test_requires_generated_rev1_3_config_and_accepts_text_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -198,20 +209,21 @@ class ContractTests(unittest.TestCase):
         self.assertNotIn("requested_reviewers", workflow)
         self.assertNotIn("github.token", workflow)
 
-    def test_24_artifacts_match_direct_project_inventory(self) -> None:
+    def test_48_artifacts_match_direct_project_inventory(self) -> None:
         flasher = (REPO_ROOT / "scripts/Flash-CI-Firmware.ps1").read_text(encoding="utf-8")
         direct = sorted(path.name for path in (REPO_ROOT / "examples/esp-idf").iterdir() if (path / "CMakeLists.txt").is_file() and (path / "main").is_dir())
         self.assertEqual(len(direct), 12)
-        self.assertIn('$Items.Count -ne 24', flasher)
+        self.assertIn('$Items.Count -ne 48', flasher)
         for project in direct:
             self.assertIn(f"'examples/esp-idf/{project}'", flasher)
         self.assertIn("@('v5.5.5', 'v6.0.2')", flasher)
         workflow = (REPO_ROOT / ".github/workflows/esp-idf-examples.yml").read_text(encoding="utf-8")
         self.assertIn('actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a', workflow)
-        self.assertIn('Artifact = "firmware-esp-idf-$slug-$version-rev1_3"', flasher)
-        self.assertIn("Profile = 'rev1_3'", flasher)
-        self.assertIn('--board-profile rev1_3', workflow)
-        self.assertIn('name: firmware-esp-idf-${{ matrix.project_slug }}-${{ matrix.idf_version }}-rev1_3', workflow)
+        self.assertIn('Artifact = "firmware-esp-idf-$slug-$version-$profile"', flasher)
+        self.assertIn("@('rev1_3', 'rev3_x')", flasher)
+        self.assertIn("rev3_x = [pscustomobject]@{ Minimum = '3.0'; MaximumExclusive = '4.0' }", flasher)
+        self.assertIn('--board-profile "${{ matrix.profile }}"', workflow)
+        self.assertIn('name: firmware-esp-idf-${{ matrix.project_slug }}-${{ matrix.idf_version }}-${{ matrix.profile }}', workflow)
 
     def test_flasher_static_safety_contract(self) -> None:
         flasher = (REPO_ROOT / "scripts/Flash-CI-Firmware.ps1").read_text(encoding="utf-8")
@@ -243,16 +255,18 @@ class ContractTests(unittest.TestCase):
         self.assertIn("[System.IO.File]::Move($temporaryPath, $StatePath)", flasher)
         self.assertIn("Remove-Item -LiteralPath $temporaryPath -Force", flasher)
         self.assertIn("Test-ArtifactInventory", flasher)
-        self.assertIn("$expected.Count -ne 24", flasher)
+        self.assertIn("$expected.Count -ne 48", flasher)
         self.assertIn('$GhExe api --method GET "repos/$Repo/actions/runs/$($run.databaseId)/artifacts?per_page=100"', flasher)
         self.assertIn("repos/$Repo/actions/runs/$($run.databaseId)/artifacts?per_page=100", flasher)
-        self.assertIn("exactly the 24 expected unique, unexpired firmware artifacts", flasher)
+        self.assertIn("exactly the 48 expected unique, unexpired firmware artifacts", flasher)
         self.assertIn("Test-ManifestFlashArguments", flasher)
         self.assertIn("--no-stub", flasher)
         self.assertIn("Test-CompletedState", flasher)
+        self.assertIn("$ProfileItems = @($Items | Where-Object { $_.Profile -eq $DetectedProfile })", flasher)
+        self.assertIn("$ProfileItems.Count -ne 24", flasher)
         self.assertLess(flasher.index('$Run = Resolve-ArtifactRun'), flasher.index('$state = Read-State $FinalSha $DetectedProfile $Run'))
-        self.assertLess(flasher.index('$state = Read-State $FinalSha $DetectedProfile $Run'), flasher.index('if (Test-CompletedState $state)'))
-        self.assertLess(flasher.index('if (Test-CompletedState $state)'), flasher.index('Invoke-CurrentFlash $item'))
+        self.assertLess(flasher.index('$state = Read-State $FinalSha $DetectedProfile $Run'), flasher.index('if (Test-CompletedState $state $ProfileItems.Count)'))
+        self.assertLess(flasher.index('if (Test-CompletedState $state $ProfileItems.Count)'), flasher.index('Invoke-CurrentFlash $item'))
         self.assertLess(flasher.index('Invoke-EsptoolProbe $PythonExe $Port'), flasher.index('Resolve-ArtifactRun $GhExe $FinalSha'))
         self.assertLess(flasher.index('Invoke-EsptoolProbe $PythonExe $Port', flasher.index('function Invoke-CurrentFlash')), flasher.index('run download $Run --repo $Repo --name $Item.Artifact'))
         self.assertNotIn('erase_flash', flasher)
