@@ -201,7 +201,8 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
 
     /* Any touch data? */
     if ((buf[0] & 0x80) == 0x00) {
-        touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+        err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+        ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
 #if (ESP_LCD_TOUCH_MAX_BUTTONS > 0)
     } else if ((buf[0] & 0x10) == 0x10) {
         /* Read all keys */
@@ -211,7 +212,7 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
         ESP_RETURN_ON_ERROR(err, TAG, "I2C read error!");
 
         /* Clear all */
-        touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+        err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
         ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
 
         portENTER_CRITICAL(&tp->data.lock);
@@ -235,7 +236,8 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
         /* Count of touched points */
         touch_cnt = buf[0] & 0x0f;
         if (touch_cnt > 5 || touch_cnt == 0) {
-            touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+            err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
+            ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
             return ESP_OK;
         }
 
@@ -245,7 +247,7 @@ static esp_err_t esp_lcd_touch_gt911_read_data(esp_lcd_touch_handle_t tp)
 
         /* Clear all */
         err = touch_gt911_i2c_write(tp, ESP_LCD_TOUCH_GT911_READ_XY_REG, clear);
-        ESP_RETURN_ON_ERROR(err, TAG, "I2C read error!");
+        ESP_RETURN_ON_ERROR(err, TAG, "I2C write error!");
 
         portENTER_CRITICAL(&tp->data.lock);
 
