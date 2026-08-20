@@ -51,8 +51,10 @@
 
 1. 安装受支持的 ESP-IDF 版本并激活其开发环境。
 2. 打开 [`examples/esp-idf/`](examples/esp-idf/) 下的任一工程。
-3. 在工程目录中选择芯片 profile，然后构建、烧录并打开串口监视器。当前开发板默认
-   使用 `rev3_x`；只有 pre-v3 芯片才使用 `rev1_3`：
+3. 在工程目录中选择芯片 profile，然后构建、烧录并打开串口监视器。仓库全部示例默认
+   使用 `rev3_x`；只有芯片探测或其他可信信息确认为 rev1.x ESP32-P4 芯片（包括 rev1.3）时，
+   才使用 `rev1_3`。这些 profile 表示芯片 revision，不是 PCB 或产品硬件 revision；
+   详见 [profile 对照表](docs/CI_ZH.md#esp32-p4-芯片-revision-profile)：
 
    ```bash
    profile=rev3_x  # 或 rev1_3
@@ -72,7 +74,7 @@
 PSRAM）。显示示例 07–12 从 ESP Component Registry 解析 LCD5 BSP `^1.0.3` 与 HX8394
 驱动 `^2.1.0`。独立 HX8394 默认配置会发送 I2C 命令序列，而 LCD5 BSP 为本开发板选择
 跳过该行为。依赖显示行为或变更任一版本前，必须在目标开发板上完成 HIL 验证。CI 工作流
-同时发布针对 pre-v3 芯片的显式 rev1_3 包；该 profile 使用 200 MHz PSRAM 配置。
+同时发布针对 rev1.x 芯片的显式 rev1_3 包；该 profile 使用 200 MHz PSRAM 配置。
 
 > [!NOTE]
 > 无线示例使用板载 ESP32-C6 协处理器。更新任一侧时，请保持 ESP32-P4 主机组件
