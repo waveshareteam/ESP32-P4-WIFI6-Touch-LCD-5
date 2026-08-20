@@ -42,7 +42,7 @@ multimedia, edge-computing, and connected-device applications.
 | Camera | 2-lane MIPI-CSI interface with optional OV5647 camera |
 | USB | USB-to-UART and USB OTG 2.0 High Speed Type-C ports |
 | Expansion | 40-pin GPIO header compatible with selected Raspberry Pi HATs; a suitable pin-header adapter may be required |
-| Board support | Registry components `waveshare/esp32_p4_wifi6_touch_lcd_5` ^1.0.3 and `waveshare/esp_lcd_hx8394` ^2.1.0 |
+| Board support | Published Registry components: `waveshare/esp32_p4_wifi6_touch_lcd_5` `^1.0.3` and `waveshare/esp_lcd_hx8394` `^2.1.0` |
 | Hardware files | [Schematic](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 For complete product specifications, interfaces, and hardware instructions, see the
@@ -63,19 +63,21 @@ For complete product specifications, interfaces, and hardware instructions, see 
 The official product documentation contains the complete setup, connection, and
 firmware flashing instructions.
 
-The example defaults select the revision-1.3/pre-v3 ESP32-P4 profile. Display
-examples 07–12 resolve the LCD5 BSP `^1.0.3` and the HX8394 driver `^2.1.0`
-from the ESP Component Registry. The standalone HX8394 default sends its I2C
-command sequence, while the LCD5 BSP selects the board-specific skip behavior.
-HIL on the target board is required before relying on display behavior or
-changing either version.
+The example defaults select the ESP32-P4 rev3.x profile (`CONFIG_ESP32P4_REV_MIN_300`
+and 250 MHz PSRAM). Display examples 07–12 resolve the LCD5 BSP `^1.0.3` and the
+HX8394 driver `^2.1.0` from the ESP Component Registry. The standalone HX8394
+default sends its I2C command sequence, while the LCD5 BSP selects the
+board-specific skip behavior. HIL on the target board is required before
+relying on display behavior or changing either version. The CI workflow also
+publishes explicit rev1_3 packages for pre-v3 silicon; those packages use the
+profile-specific 200 MHz PSRAM settings.
 
 > [!NOTE]
 > Wireless examples use the onboard ESP32-C6 coprocessor. Keep the ESP32-P4 host
 > components and ESP32-C6 slave firmware compatible when changing either side.
 > See the [host/slave compatibility contract](docs/P4_C6_HOSTED_WIFI.md).
 
-## 🔧 Arduino Examples
+## 🧪 Arduino Examples
 
 Ten first-party Arduino sketches are bundled under [`examples/arduino/`](examples/arduino/),
 covering the DSI display (Arduino_GFX), GT911 touch drawing, LVGL 9 UI, a graphical Wi-Fi
@@ -106,21 +108,21 @@ core `3.3.11` with PSRAM enabled and are packaged as real offset-addressed segme
 
 | Surface | Version | Matrix builds |
 | --- | --- | ---: |
-| ESP-IDF | `v5.5.5` | 12 |
-| ESP-IDF | `v6.0.2` | 12 |
+| ESP-IDF | `v5.5.5` | 24 (12 × 2 profiles) |
+| ESP-IDF | `v6.0.2` | 24 (12 × 2 profiles) |
 
 The [ESP-IDF examples workflow](https://github.com/waveshareteam/ESP32-P4-WIFI6-Touch-LCD-5/actions/workflows/esp-idf-examples.yml)
 runs an always-visible lightweight repository-policy job, then selects only the
 first-party projects affected by the complete diff. Shared build inputs select
-the full 24-job matrix, while documentation-only and firmware-only changes do
+the full 48-job matrix, while documentation-only and firmware-only changes do
 not spend product-build capacity. The final aggregate status remains visible in
 every case. See [CI discovery and routing](docs/CI.md).
 
 CI verifies compile compatibility for the exact pull-request head SHA; hardware
 behavior still requires validation on the board against the schematic and
-product documentation. The repository has no maintained revision-3 product
-firmware source, so revision-specific product-firmware jobs, artifacts, and
-flasher probes are not included in this example migration.
+product documentation. Revision-specific example bundles and flasher checks are
+included; independently maintained product-firmware jobs remain outside this
+example CI change.
 
 ## 🗂️ Repository Layout
 
@@ -128,7 +130,7 @@ flasher probes are not included in this example migration.
 | --- | --- |
 | [`.github/`](.github/) | ESP-IDF project discovery and GitHub Actions workflow |
 | [`assets/`](assets/) | Product images used by the documentation |
-| [`docs/`](docs/) | CI, component, hardware, and hosted-Wi-Fi maintenance contracts |
+| [`docs/`](docs/) | CI, component, hardware, I/O, and hosted-Wi-Fi maintenance contracts |
 | [`examples/esp-idf/`](examples/esp-idf/) | First-party ESP-IDF projects |
 | [`firmware/`](firmware/) | Factory flashing firmware |
 | [`hardware/schematic/`](hardware/schematic/) | Product schematic |
@@ -155,6 +157,7 @@ before using it.
 - [CI Discovery and Routing](docs/CI.md)
 - [Component Policy](docs/COMPONENTS.md)
 - [Schematic-backed Hardware Validation](docs/HARDWARE.md)
+- [Board I/O List](docs/IO.md)
 - [P4/C6 Hosted Wi-Fi Compatibility](docs/P4_C6_HOSTED_WIFI.md)
 
 ## 🤝 Support and Contributions

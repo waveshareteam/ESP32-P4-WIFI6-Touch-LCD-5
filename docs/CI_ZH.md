@@ -12,8 +12,8 @@ ESP-IDF 工作流验证 [examples/esp-idf](../examples/esp-idf/) 直属的 12 �
 
 | 框架版本线 | CI 精确版本 | 第一方工程数 | 构建任务数 |
 | --- | --- | ---: | ---: |
-| ESP-IDF 5.5 | v5.5.5 | 12 | 12 |
-| ESP-IDF 6.0 | v6.0.2 | 12 | 12 |
+| ESP-IDF 5.5 | v5.5.5 | 12 | 24（12 × 2 profile） |
+| ESP-IDF 6.0 | v6.0.2 | 12 | 24（12 × 2 profile） |
 
 更新工作流时需重新核对这些精确标签。构建成功只证明对应提交能够编译，不代表硬件行为
 或出厂固件兼容性已经得到验证。显示、触摸、音频、摄像头、无线和烧录行为必须在目标开发板
@@ -63,17 +63,18 @@ Git diff 决定。
 ## 托管组件版本与 revision 默认配置
 
 显示示例 07–12 从 ESP Component Registry（waveshare 命名空间）解析 LCD5 BSP `^1.0.3`
-与 HX8394 驱动 `^2.1.0`。其默认配置选择 revision-1.3/pre-v3 产品配置；仓库没有受维护的
-产品固件源码，因此不包含按 revision 区分的产品固件任务。
+与 HX8394 驱动 `^2.1.0`。默认源码配置选择 rev3.x；仓库保留显式的 `rev1_3` overlay
+以兼容 pre-v3 示例。独立的板级产品固件不属于本次示例 CI 变更。
 
-示例固件包默认使用 `rev1_3`（pre-v3）配置。仓库中刻意没有 `rev3_x` 产品 artifact：
-尚未指定受维护的产品固件源码。
+示例固件包同时使用两个显式 profile 构建并发布：`rev1_3`（`[1.0, 3.0)`、
+200 MHz PSRAM）与 `rev3_x`（`[3.0, 4.0)`、250 MHz PSRAM）。源码默认配置为 rev3.x；
+profile overlay 可避免误用不匹配的芯片设置。
 
 ## CI 固件包与人工硬件验证
 
-每个必需的 ESP-IDF 构建还会创建一个名为
-`firmware-esp-idf-<project-slug>-<version>-rev1_3` 的 artifact。12 个直属工程乘以两个
-ESP-IDF 版本，共得到 24 个可独立追溯的固件包。包由该构建真实的
+每个必需的 ESP-IDF 构建会按 profile 创建名为
+`firmware-esp-idf-<project-slug>-<version>-<profile>` 的 artifact。12 个直属工程乘以两个
+ESP-IDF 版本和两个 profile，共得到 48 个可独立追溯的固件包。包由该构建真实的
 `flasher_args.json` 生成，保留实际 offset，不猜测固定的 ESP32-P4 offset；其中包含
 `bin/**`、`manifest.json` 与 `metadata/flasher_args.json`。
 包会将构建已验证的 flash mode、size、freq、reset 和 stub 设置作为结构化 manifest 数据
@@ -81,9 +82,9 @@ ESP-IDF 版本，共得到 24 个可独立追溯的固件包。包由该构建�
 只能使用仓库根目录的 `Flash-CI-Firmware.cmd` 入口，它会调用受版本控制的 PowerShell
 编排脚本，并要求显式传入 `COMx` 端口。
 打包必须读取实际生成的构建配置（`build/config/sdkconfig.json`，或生成的
-`build/sdkconfig` 回退），并确认 `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y` 与
-`CONFIG_ESP32P4_REV_MIN_100=y`；源码 defaults 不能作为证据。内部 ZIP 文件名和 manifest
-也会包含 `board_profile: rev1_3`、`[1.0, 3.0)` revision 范围以及
+`build/sdkconfig` 回退），并确认所选 profile 的符号（`rev1_3` 为 `SELECTS_REV_LESS_V3=y`、
+`REV_MIN_100=y`；`rev3_x` 为 `SELECTS_REV_LESS_V3=n`、`REV_MIN_300=y`）；源码 defaults
+不能作为证据。内部 ZIP 文件名和 manifest 会包含所选 `board_profile`、对应 revision 范围以及
 `c6_firmware_included: false`。
 
 人工测试前，请安装 GitHub CLI 和带 esptool 的 Python，并执行 `gh auth login`。在
@@ -97,16 +98,17 @@ Flash-CI-Firmware.cmd -Port COMx [-Baud N]
 
 `-SelfTest` 与 `-ListOnly` 是离线检查：不会访问 GitHub、串口设备或 artifact。普通模式
 必须显式传入占位符 `COMx`，绝不猜测串口设备。它只接受最终 PR HEAD SHA 的成功工作流运行，
-且该运行必须报告完整的 24 个预期、唯一且未过期的 firmware artifact；部分 dispatch 运行
+且该运行必须报告完整的 48 个预期、唯一且未过期的 firmware artifact；部分 dispatch 运行
 会被拒绝。随后它只下载选定的准确 artifact，校验 manifest 身份、每个相对二进制路径、大小、
 SHA-256、offset、重叠和 32 MiB flash 边界；之后还要求 esptool 成功退出并输出
 `Hash of data verified`。
 在下载 artifact 或烧录之前，它会执行只读 `esptool chip_id` ESP32-P4 探测（仅在兼容性需要时
-回退到 `chip-id`），解析芯片 revision，并且只允许 `< 3.0` 的 `rev1_3`。芯片 `>= 3.0`
-会映射为 `rev3_x` 并被拒绝，因为没有对应产品 artifact。芯片 revision 检查不能替代
+回退到 `chip-id`），解析芯片 revision，并根据 revision 选择 `< 3.0` 的 `rev1_3` 或
+`>= 3.0` 的 `rev3_x`，随后校验 manifest 范围是否匹配。芯片 revision 检查不能替代
 PCB/电气 revision 确认。每次烧录后，用户必须实际检查硬件并输入 `PASS`；进度按 profile
 隔离地存放在用户本地应用数据中，final SHA、选定 workflow run、profile 改变、保存状态截断/格式错误
 或旧 schema 时会自动重置。状态写入会先在同一目录创建临时文件，再原子替换或移动到状态文件。
 
 这些 CI 固件包是测试输出，不是仓库内的出厂固件。CI 构建和完整性门禁不代表已完成物理
-测试；24 项硬件验证仍须由用户逐项执行。
+测试。每块板只执行与探测所得 profile 匹配的 24 项；若要覆盖两个 profile，需要使用适配的
+开发板完成总计 48 项显式硬件验证。

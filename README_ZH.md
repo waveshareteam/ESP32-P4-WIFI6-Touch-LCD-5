@@ -41,7 +41,7 @@
 | 摄像头 | 2-lane MIPI-CSI 接口，可选配 OV5647 摄像头 |
 | USB | USB 转 UART 和 USB OTG 2.0 High Speed Type-C 接口 |
 | 扩展接口 | 40PIN GPIO 接口，可兼容部分树莓派 HAT；可能需要合适的排针转接 |
-| 板级支持 | 注册表组件 `waveshare/esp32_p4_wifi6_touch_lcd_5` ^1.0.3 与 `waveshare/esp_lcd_hx8394` ^2.1.0 |
+| 板级支持 | 已发布 Registry 组件：`waveshare/esp32_p4_wifi6_touch_lcd_5` `^1.0.3` 与 `waveshare/esp_lcd_hx8394` `^2.1.0` |
 | 硬件文件 | [产品原理图](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 完整的产品规格、接口和硬件使用说明请参阅
@@ -61,17 +61,18 @@
 
 完整的环境配置、连接方法和固件烧录步骤请参阅官方产品文档。
 
-示例默认配置选择 ESP32-P4 revision-1.3/pre-v3 配置。显示示例 07–12 从 ESP Component
-Registry 解析 LCD5 BSP `^1.0.3` 与 HX8394 驱动 `^2.1.0`。独立 HX8394 默认配置会发送
-I2C 命令序列，而 LCD5 BSP 为本开发板选择跳过该行为。依赖显示行为或变更任一版本前，
-必须在目标开发板上完成 HIL 验证。
+示例默认配置选择 ESP32-P4 rev3.x 配置（`CONFIG_ESP32P4_REV_MIN_300` 与 250 MHz
+PSRAM）。显示示例 07–12 从 ESP Component Registry 解析 LCD5 BSP `^1.0.3` 与 HX8394
+驱动 `^2.1.0`。独立 HX8394 默认配置会发送 I2C 命令序列，而 LCD5 BSP 为本开发板选择
+跳过该行为。依赖显示行为或变更任一版本前，必须在目标开发板上完成 HIL 验证。CI 工作流
+同时发布针对 pre-v3 芯片的显式 rev1_3 包；该 profile 使用 200 MHz PSRAM 配置。
 
 > [!NOTE]
 > 无线示例使用板载 ESP32-C6 协处理器。更新任一侧时，请保持 ESP32-P4 主机组件
 > 与 ESP32-C6 从机固件兼容。请参阅
 > [主机/从机兼容性约定](docs/P4_C6_HOSTED_WIFI_ZH.md)。
 
-## 🔧 Arduino 示例
+## 🧪 Arduino 示例
 
 仓库在 [`examples/arduino/`](examples/arduino/) 下提供 10 个 Arduino 草图,覆盖 DSI 显示
 (Arduino_GFX)、GT911 触摸画板、LVGL 9 界面、图形化 Wi-Fi 扫描、ES8311 旋律播放、
@@ -100,17 +101,17 @@ core `3.3.11`(启用 PSRAM),发布为真实分段包(不含 merged/整片镜像)
 
 | 开发框架 | 版本 | 矩阵构建数 |
 | --- | --- | ---: |
-| ESP-IDF | `v5.5.5` | 12 |
-| ESP-IDF | `v6.0.2` | 12 |
+| ESP-IDF | `v5.5.5` | 24（12 × 2 profile） |
+| ESP-IDF | `v6.0.2` | 24（12 × 2 profile） |
 
 [ESP-IDF 示例工作流](https://github.com/waveshareteam/ESP32-P4-WIFI6-Touch-LCD-5/actions/workflows/esp-idf-examples.yml)
 会始终运行轻量仓库策略任务，再根据完整 diff 只选择受影响的第一方工程。共享构建输入
-会选择完整 24 项矩阵，纯文档或仅固件变更不会消耗产品构建资源；最终汇总状态在所有
+会选择完整 48 项矩阵，纯文档或仅固件变更不会消耗产品构建资源；最终汇总状态在所有
 情况下均可见。详情请参阅 [CI 发现与路由](docs/CI_ZH.md)。
 
 CI 只验证精确 Pull Request head SHA 的编译兼容性；硬件行为仍需结合开发板、原理图和
-产品文档进行验证。仓库没有受维护的 revision-3 产品固件源码，因此本次示例迁移不包含按
-revision 区分的产品固件任务、artifact 和烧录器探测。
+产品文档进行验证。本次变更包含按 revision 区分的示例包和烧录检查；独立维护的板级产品
+固件任务仍不属于本次示例 CI 变更。
 
 ## 🗂️ 仓库结构
 
@@ -118,7 +119,7 @@ revision 区分的产品固件任务、artifact 和烧录器探测。
 | --- | --- |
 | [`.github/`](.github/) | ESP-IDF 工程发现脚本和 GitHub Actions 工作流 |
 | [`assets/`](assets/) | 文档使用的产品图片 |
-| [`docs/`](docs/) | CI、组件、硬件和 Hosted Wi-Fi 维护约定 |
+| [`docs/`](docs/) | CI、组件、硬件、IO 和 Hosted Wi-Fi 维护约定 |
 | [`examples/esp-idf/`](examples/esp-idf/) | 第一方 ESP-IDF 工程 |
 | [`firmware/`](firmware/) | 出厂烧录固件 |
 | [`hardware/schematic/`](hardware/schematic/) | 产品原理图 |
@@ -143,6 +144,7 @@ revision 区分的产品固件任务、artifact 和烧录器探测。
 - [CI 发现与路由](docs/CI_ZH.md)
 - [组件策略](docs/COMPONENTS_ZH.md)
 - [基于原理图的硬件核验](docs/HARDWARE_ZH.md)
+- [板级 IO 列表](docs/IO_ZH.md)
 - [P4/C6 Hosted Wi-Fi 兼容性](docs/P4_C6_HOSTED_WIFI_ZH.md)
 
 ## 🤝 支持与贡献

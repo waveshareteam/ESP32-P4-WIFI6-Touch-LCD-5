@@ -8,6 +8,7 @@ They do not replace the official product documentation.
 - [CI discovery and routing](CI.md)
 - [Component ownership and dependency policy](COMPONENTS.md)
 - [Schematic-backed hardware validation](HARDWARE.md)
+- [Board I/O list](IO.md)
 - [ESP32-P4 and ESP32-C6 hosted Wi-Fi compatibility](P4_C6_HOSTED_WIFI.md)
 
 For setup, wiring, flashing, and product usage, see the
