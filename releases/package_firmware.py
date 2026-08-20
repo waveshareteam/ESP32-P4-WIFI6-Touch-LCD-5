@@ -29,7 +29,7 @@ SAFE_AFTER = {"hard_reset", "no_reset", "hard-reset", "no-reset"}
 BOARD_PROFILES = {
     "rev1_3": {
         "minimum": "1.0",
-        "maximum_exclusive": "3.0",
+        "maximum_exclusive": "2.0",
         "symbols": {
             "CONFIG_ESP32P4_SELECTS_REV_LESS_V3": "y",
             "CONFIG_ESP32P4_REV_MIN_100": "y",

@@ -17,7 +17,7 @@ $DefaultStartIndex = 1
 $SafeBefore = @('default_reset', 'no_reset', 'default-reset', 'no-reset')
 $SafeAfter = @('hard_reset', 'no_reset', 'hard-reset', 'no-reset')
 $BoardProfiles = @{
-    rev1_3 = [pscustomobject]@{ Minimum = '1.0'; MaximumExclusive = '3.0' }
+    rev1_3 = [pscustomobject]@{ Minimum = '1.0'; MaximumExclusive = '2.0' }
     rev3_x = [pscustomobject]@{ Minimum = '3.0'; MaximumExclusive = '4.0' }
 }
 $Projects = @(
@@ -41,10 +41,16 @@ foreach ($project in $Projects) {
 }
 
 function Test-Port([string]$Value) { return $Value -match '^COM\d+$' }
-function Get-ProfileForRevision([int]$Major, [int]$Minor) { if ($Major -lt 3) { return 'rev1_3' }; return 'rev3_x' }
 function Test-RevisionInRange([int]$Major, [int]$Minor, [string]$Minimum, [string]$MaximumExclusive) {
     $current = [version]"$Major.$Minor"
     return $current -ge [version]$Minimum -and $current -lt [version]$MaximumExclusive
+}
+function Get-ProfileForRevision([int]$Major, [int]$Minor) {
+    foreach ($profile in @('rev1_3', 'rev3_x')) {
+        $range = $BoardProfiles[$profile]
+        if (Test-RevisionInRange $Major $Minor $range.Minimum $range.MaximumExclusive) { return $profile }
+    }
+    throw "Unsupported ESP32-P4 silicon revision v$Major.$Minor; supported ranges are [1.0, 2.0) and [3.0, 4.0)."
 }
 function Get-StatePath([string]$Root, [string]$Profile) {
     if (-not $BoardProfiles.ContainsKey($Profile)) { throw "Unsupported board profile: $Profile" }
@@ -120,17 +126,37 @@ if ($SelfTest) {
     $rev1 = ConvertFrom-EsptoolProbe "Chip is ESP32-P4; revision v1.0"
     $rev1Item = @($Items | Where-Object { $_.Profile -eq 'rev1_3' })[0]
     Assert-ProfileForRevision $rev1 $rev1Item
-    if ((Get-ProfileForRevision $rev1.Major $rev1.Minor) -ne 'rev1_3') { throw 'SelfTest pre-v3 profile mapping failed.' }
+    if ((Get-ProfileForRevision $rev1.Major $rev1.Minor) -ne 'rev1_3') { throw 'SelfTest rev1.x profile mapping failed.' }
     $rev3Item = @($Items | Where-Object { $_.Profile -eq 'rev3_x' })[0]
     $rev3 = ConvertFrom-EsptoolProbe "ESP32-P4 rev 3.0"
     Assert-ProfileForRevision $rev3 $rev3Item
     if ((Get-ProfileForRevision $rev3.Major $rev3.Minor) -ne 'rev3_x') { throw 'SelfTest rev3_x profile mapping failed.' }
+    foreach ($accepted in @(
+        [pscustomobject]@{ Output = 'ESP32-P4 rev 1.3'; Profile = 'rev1_3' },
+        [pscustomobject]@{ Output = 'ESP32-P4 revision v1.99'; Profile = 'rev1_3' },
+        [pscustomobject]@{ Output = 'ESP32-P4 rev 3.99'; Profile = 'rev3_x' }
+    )) {
+        $probe = ConvertFrom-EsptoolProbe $accepted.Output
+        if ((Get-ProfileForRevision $probe.Major $probe.Minor) -ne $accepted.Profile) { throw "SelfTest accepted revision mapping failed for $($accepted.Output)." }
+    }
+    foreach ($unsupported in @('ESP32-P4 rev 0.99', 'ESP32-P4 rev 2.0', 'ESP32-P4 rev 2.99', 'ESP32-P4 rev 4.0')) {
+        $rejected = $false
+        try {
+            $probe = ConvertFrom-EsptoolProbe $unsupported
+            $null = Get-ProfileForRevision $probe.Major $probe.Minor
+        } catch {
+            if ($_.Exception.Message -notmatch '^Unsupported ESP32-P4 silicon revision') { throw }
+            $rejected = $true
+        }
+        if (-not $rejected) { throw "SelfTest unsupported revision was accepted: $unsupported" }
+    }
     $manifestMismatch = $false
     $manifest = [pscustomobject]@{ board_profile = 'rev3_x'; chip_revision = [pscustomobject]@{ minimum = '3.0'; maximum_exclusive = '4.0' }; c6_firmware_included = $false }
     if ($manifest.board_profile -ne $rev1Item.Profile -or -not (Test-RevisionInRange $rev1.Major $rev1.Minor $manifest.chip_revision.minimum $manifest.chip_revision.maximum_exclusive)) { $manifestMismatch = $true }
     if (-not $manifestMismatch) { throw 'SelfTest manifest profile mismatch failed.' }
-    $rev1State = Get-StatePath 'C:\state' 'rev1_3'
-    if ($rev1State -notmatch 'state-v3-rev1_3\.json$' -or $rev1State -eq (Join-Path 'C:\state' 'state-v3-rev3_x.json')) { throw 'SelfTest profile state isolation failed.' }
+    $selfTestRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'waveshare-lcd5-selftest'
+    $rev1State = Get-StatePath $selfTestRoot 'rev1_3'
+    if ([System.IO.Path]::GetFileName($rev1State) -ne 'state-v3-rev1_3.json' -or $rev1State -eq (Join-Path $selfTestRoot 'state-v3-rev3_x.json')) { throw 'SelfTest profile state isolation failed.' }
     $profileItemCount = 24
     foreach ($selectedProfile in @('rev1_3', 'rev3_x')) {
         $profileItems = @($Items | Where-Object { $_.Profile -eq $selectedProfile })
@@ -147,11 +173,12 @@ if ($SelfTest) {
     $complete = Get-StateForArtifactRun ([pscustomobject]@{ SchemaVersion = 3; Profile = 'rev1_3'; FinalSha = ('a' * 40); RunId = '101'; CurrentIndex = 24; ConfirmedIndexes = @(1..24) }) ('a' * 40) 'rev1_3' '101' $profileItemCount
     if (-not (Test-CompletedState $complete $profileItemCount)) { throw 'SelfTest completed-state recovery failed.' }
     if ($null -ne (ConvertFrom-StateJson '{')) { throw 'SelfTest malformed state reset failed.' }
-    if ([System.IO.Path]::GetDirectoryName((Get-StateTempPath 'C:\state\state-v3-rev1_3.json')) -ne 'C:\state') { throw 'SelfTest atomic state temporary path failed.' }
+    if ([System.IO.Path]::GetDirectoryName((Get-StateTempPath $rev1State)) -ne [System.IO.Path]::GetDirectoryName($rev1State)) { throw 'SelfTest atomic state temporary path failed.' }
     $fullInventory = [pscustomobject]@{ TotalCount = $Items.Count; Artifacts = @($Items | ForEach-Object { [pscustomobject]@{ name = $_.Artifact; expired = $false } }) }
     if (-not (Test-ArtifactInventory $fullInventory) -or (Test-ArtifactInventory ([pscustomobject]@{ TotalCount = ($Items.Count - 1); Artifacts = @($fullInventory.Artifacts | Select-Object -First ($Items.Count - 1)) }))) { throw 'SelfTest exact artifact inventory failed.' }
-    if ((Test-RelativePackagePath 'C:\package' '..\escape.bin') -or (Test-RelativePackagePath 'C:\package' 'C:\escape.bin') -or -not (Test-RelativePackagePath 'C:\package' 'bin\app.bin')) { throw 'SelfTest path boundary failed.' }
-    Write-Output 'SELF_TEST_OK items=48 profile_items=24 profiles=rev1_3,rev3_x parser=ok pre_v3=allowed rev3_x=allowed manifest_mismatch=blocked state-v3=profile-isolated transitions=23 sha_reset=ok run_reset=ok malformed_state_reset=ok atomic_state_temp=ok artifact_inventory=48-exact-unexpired completed_recovery=ok path_boundary=ok'
+    $selfTestPackageRoot = Join-Path $selfTestRoot 'package'
+    if ((Test-RelativePackagePath $selfTestPackageRoot ([System.IO.Path]::Combine('..', 'escape.bin'))) -or (Test-RelativePackagePath $selfTestPackageRoot (Join-Path $selfTestRoot 'escape.bin')) -or -not (Test-RelativePackagePath $selfTestPackageRoot ([System.IO.Path]::Combine('bin', 'app.bin')))) { throw 'SelfTest path boundary failed.' }
+    Write-Output 'SELF_TEST_OK items=48 profile_items=24 profiles=rev1_3,rev3_x parser=ok rev1_x=allowed rev3_x=allowed unsupported_gaps=blocked manifest_mismatch=blocked state-v3=profile-isolated transitions=23 sha_reset=ok run_reset=ok malformed_state_reset=ok atomic_state_temp=ok artifact_inventory=48-exact-unexpired completed_recovery=ok path_boundary=ok'
     return
 }
 if ($ListOnly) {
