@@ -58,6 +58,7 @@ MP4_AUDIO_MANIFEST = """dependencies:
 REVISION_DEFAULTS = """CONFIG_IDF_TARGET="esp32p4"
 CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n
 CONFIG_ESP32P4_REV_MIN_300=y
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
 """
 REV1_3_DEFAULTS = """CONFIG_IDF_TARGET="esp32p4"
 CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
@@ -213,6 +214,11 @@ class ComponentContractTests(unittest.TestCase):
         relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults.rev1_3"
         self.repo.write(relative, REV1_3_DEFAULTS)
         self.assertNotIn("P4_LEGACY_REVISION_DEFAULT", self.repo.codes())
+
+    def test_bootloader_info_default_is_rejected(self) -> None:
+        relative = "examples/esp-idf/07_Displaycolorbar/sdkconfig.defaults"
+        self.repo.write(relative, REVISION_DEFAULTS.replace("CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y", "CONFIG_BOOTLOADER_LOG_LEVEL_INFO=y"))
+        self.assertIn("P4_BOOTLOADER_WARN_DEFAULT", self.repo.codes())
 
     def test_floating_mp4_audio_codec_is_rejected(self) -> None:
         self.repo.write(CONTRACTS.MP4_AUDIO_MANIFEST.as_posix(), MP4_AUDIO_MANIFEST.replace('"2.5.0"', '"^2.3.0"'))

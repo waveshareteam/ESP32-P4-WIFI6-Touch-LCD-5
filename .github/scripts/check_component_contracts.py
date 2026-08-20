@@ -153,7 +153,7 @@ def check_managed_components(repo: Path) -> list[Finding]:
 
 def check_revision_defaults(repo: Path) -> list[Finding]:
     findings: list[Finding] = []
-    required = (
+    revision_required = (
         'CONFIG_IDF_TARGET="esp32p4"',
         "CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n",
         "CONFIG_ESP32P4_REV_MIN_300=y",
@@ -161,11 +161,13 @@ def check_revision_defaults(repo: Path) -> list[Finding]:
     for project in ALL_PROJECTS:
         relative = Path(f"examples/esp-idf/{project}/sdkconfig.defaults")
         content = read(repo, relative)
-        if any(marker not in content for marker in required):
+        if any(marker not in content for marker in revision_required):
             findings.append(Finding(relative.as_posix(), "P4_REV3_REVISION_DEFAULT", "require esp32p4, rev3.x selection, and revision 3.0 default"))
+        if "CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y" not in content:
+            findings.append(Finding(relative.as_posix(), "P4_BOOTLOADER_WARN_DEFAULT", "keep the ESP32-P4 bootloader below the default partition-table boundary"))
     alternate = Path("examples/esp-idf/12_usb_extend_screen/sdkconfig.defaults.esp32p4")
     content = read(repo, alternate)
-    if any(marker not in content for marker in required[1:]):
+    if any(marker not in content for marker in revision_required[1:]):
         findings.append(Finding(alternate.as_posix(), "P4_REV3_REVISION_DEFAULT", "require the rev3.x revision default in the ESP32-P4 overlay"))
     for path in repo.glob("examples/esp-idf/*/sdkconfig.defaults*"):
         if path.is_file():
