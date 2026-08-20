@@ -128,7 +128,7 @@ class RoutingContractTests(unittest.TestCase):
                 self.assertEqual(payload["idf_versions"], ["v5.5.5", "v6.0.2"])
                 self.assertEqual(
                     len(payload["matrix"]["include"]),
-                    len(expected_examples) * 2,
+                    len(expected_examples) * 4,
                 )
 
     def test_nested_component_test_app_is_not_first_party_or_manually_selectable(self) -> None:

@@ -35,6 +35,14 @@ BOARD_PROFILES = {
             "CONFIG_ESP32P4_REV_MIN_100": "y",
         },
     },
+    "rev3_x": {
+        "minimum": "3.0",
+        "maximum_exclusive": "4.0",
+        "symbols": {
+            "CONFIG_ESP32P4_SELECTS_REV_LESS_V3": "n",
+            "CONFIG_ESP32P4_REV_MIN_300": "y",
+        },
+    },
 }
 
 
@@ -148,6 +156,22 @@ def archive_name(source: Path, used: set[str]) -> str:
         counter += 1
 
 
+def artifact_name(source_project: str, framework_version: str, profile: str) -> str:
+    """Return the schema-v1 artifact identity shared by CI and local tools."""
+    prefix = "examples/esp-idf/"
+    if source_project.startswith(prefix):
+        relative = source_project[len(prefix):]
+        match = re.fullmatch(r"([0-9]{1,3})_([A-Za-z0-9._~-]+)", relative)
+        if not match:
+            raise ValueError(f"unsupported ESP-IDF example project: {source_project}")
+        number, label = match.groups()
+        normalized = label.casefold().replace("_", "-")
+        return f"firmware-{number}-{normalized}-{framework_version.replace('.', '-')}-{profile}"
+    if source_project == "firmware/brookesia":
+        return f"firmware-brookesia-{framework_version.replace('.', '-')}-{profile}"
+    raise ValueError(f"unsupported ESP-IDF source project: {source_project}")
+
+
 def parse_write_flash_args(raw: object) -> list[dict[str, str]]:
     if isinstance(raw, dict):
         pairs = list(raw.items())
@@ -241,7 +265,7 @@ def package_esp_idf(project: Path, build_dir: Path, framework_version: str, outp
         "files": records,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
-    output = output_dir / f"firmware-{slugify(source_project.split('/')[-1])}-{slugify(framework_version)}-{profile}.zip"
+    output = output_dir / f"{artifact_name(source_project, framework_version, profile)}.zip"
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for source, name in sources:
             archive.write(source, name)
