@@ -275,7 +275,12 @@ class ContractTests(unittest.TestCase):
         self.assertLess(flasher.index('$Run = Resolve-ArtifactRun'), flasher.index('$state = Read-State $FinalSha $DetectedProfile $Run'))
         self.assertLess(flasher.index('$state = Read-State $FinalSha $DetectedProfile $Run'), flasher.index('if (Test-CompletedState $state $ProfileItems.Count)'))
         self.assertLess(flasher.index('if (Test-CompletedState $state $ProfileItems.Count)'), flasher.index('Invoke-CurrentFlash $item'))
-        self.assertLess(flasher.index('Invoke-EsptoolProbe $PythonExe $Port'), flasher.index('Resolve-ArtifactRun $GhExe $FinalSha'))
+        normal_mode = flasher[flasher.index('\n$GitExe = Resolve-Git;') :]
+        top_level_probe = '$revision = Invoke-EsptoolProbe $PythonExe $Port'
+        self.assertEqual(normal_mode.count(top_level_probe), 1)
+        self.assertLess(normal_mode.index(top_level_probe), normal_mode.index('$DetectedProfile = Get-ProfileForRevision'))
+        self.assertLess(normal_mode.index('$DetectedProfile = Get-ProfileForRevision'), normal_mode.index('Assert-ReadyPullRequest'))
+        self.assertLess(normal_mode.index('$DetectedProfile = Get-ProfileForRevision'), normal_mode.index('Resolve-ArtifactRun $GhExe $FinalSha'))
         self.assertLess(flasher.index('Invoke-EsptoolProbe $PythonExe $Port', flasher.index('function Invoke-CurrentFlash')), flasher.index('run download $Run --repo $Repo --name $Item.Artifact'))
         self.assertNotIn('erase_flash', flasher)
         for document in (REPO_ROOT / "docs/CI.md", REPO_ROOT / "docs/CI_ZH.md"):
