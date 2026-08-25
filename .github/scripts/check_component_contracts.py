@@ -21,8 +21,10 @@ BROOKESIA_DEFAULTS = Path("examples/esp-idf/11_esp_brookesia_phone/sdkconfig.def
 USB_DESCRIPTOR_SOURCE = Path("examples/esp-idf/12_usb_extend_screen/main/tusb/usb_descriptors.c")
 USB_DESCRIPTOR_HEADER = Path("examples/esp-idf/12_usb_extend_screen/main/tusb/usb_descriptors.h")
 USB_APP_MAIN = Path("examples/esp-idf/12_usb_extend_screen/main/usb_extend_screen.c")
+ARDUINO_DSI_PANEL = Path("examples/arduino/libraries/GFX_Library_for_Arduino/src/databus/Arduino_ESP32DSIPanel.cpp")
+ARDUINO_DSI_CLOCK_VALUE = "static_cast<mipi_dsi_phy_pllref_clock_source_t>(0)"
 BSP_COMPONENT = "waveshare/esp32_p4_wifi6_touch_lcd_5"
-BSP_COMPONENT_VERSION = "^1.0.3"
+BSP_COMPONENT_VERSION = "^1.0.4"
 HX8394_COMPONENT = "waveshare/esp_lcd_hx8394"
 HX8394_COMPONENT_VERSION = "^2.1.0"
 DISPLAY_PROJECTS = (
@@ -217,6 +219,51 @@ def check_i2s_psram_dependency(repo: Path) -> list[Finding]:
     )]
 
 
+def check_arduino_dsi_clock(repo: Path) -> list[Finding]:
+    source = read(repo, ARDUINO_DSI_PANEL)
+    active_source = re.sub(r"/\*.*?\*/|//[^\r\n]*", "", source, flags=re.DOTALL)
+    calls = list(re.finditer(
+        r"\besp_lcd_new_dsi_bus\s*\(\s*&\s*([A-Za-z_]\w*)\s*,",
+        active_source,
+    ))
+    if len(calls) != 1:
+        return [Finding(
+            ARDUINO_DSI_PANEL.as_posix(),
+            "ARDUINO_DSI_REVISION_CLOCK",
+            "pass one locally initialized revision-aware DSI bus configuration to esp_lcd_new_dsi_bus",
+        )]
+
+    config_name = calls[0].group(1)
+    initializers = list(re.finditer(
+        rf"\besp_lcd_dsi_bus_config_t\s+{re.escape(config_name)}\s*=\s*\{{(.*?)\}}\s*;",
+        active_source[:calls[0].start()],
+        flags=re.DOTALL,
+    ))
+    if len(initializers) != 1:
+        return [Finding(
+            ARDUINO_DSI_PANEL.as_posix(),
+            "ARDUINO_DSI_REVISION_CLOCK",
+            "initialize the DSI bus configuration passed to esp_lcd_new_dsi_bus in the same source path",
+        )]
+
+    assignments = [
+        match.group(1).strip()
+        for match in re.finditer(r"\.phy_clk_src\s*=\s*([^,\r\n}]+)", initializers[0].group(1))
+    ]
+    after_initializer = active_source[initializers[0].end():calls[0].start()]
+    overwritten = re.search(
+        rf"\b{re.escape(config_name)}\s*\.\s*phy_clk_src\s*=",
+        after_initializer,
+    )
+    if assignments == [ARDUINO_DSI_CLOCK_VALUE] and not overwritten:
+        return []
+    return [Finding(
+        ARDUINO_DSI_PANEL.as_posix(),
+        "ARDUINO_DSI_REVISION_CLOCK",
+        "set the single DSI bus PHY clock source to 0 so ESP-IDF selects the clock for the configured P4 revision",
+    )]
+
+
 def check_display_resolution_contracts(repo: Path) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -285,7 +332,7 @@ def check_display_resolution_contracts(repo: Path) -> list[Finding]:
 
 def run(repo: Path) -> list[Finding]:
     repo = repo.resolve()
-    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_i2s_psram_dependency(repo), *check_display_resolution_contracts(repo)})
+    return sorted({*check_brookesia(repo), *check_managed_components(repo), *check_revision_defaults(repo), *check_hosted_wifi(repo), *check_mp4_audio_codec(repo), *check_i2s_psram_dependency(repo), *check_arduino_dsi_clock(repo), *check_display_resolution_contracts(repo)})
 
 
 def main() -> int:
