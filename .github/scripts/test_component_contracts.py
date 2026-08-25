@@ -89,6 +89,14 @@ USB_DESCRIPTOR_SOURCE = """TUD_HID_REPORT_DESC_TOUCH_SCREEN(
 USB_APP_MAIN = """_Static_assert(USB_EXTEND_SCREEN_H_RES == BSP_LCD_H_RES, "width");
 _Static_assert(USB_EXTEND_SCREEN_V_RES == BSP_LCD_V_RES, "height");
 """
+ARDUINO_DSI_PANEL_SOURCE = """esp_lcd_dsi_bus_config_t bus_config = {
+    .bus_id = 0,
+    .num_data_lanes = 2,
+    .phy_clk_src = static_cast<mipi_dsi_phy_pllref_clock_source_t>(0),
+    .lane_bit_rate_mbps = 700,
+};
+esp_lcd_new_dsi_bus(&bus_config, &mipi_dsi_bus);
+"""
 
 
 def git_dependency(component: str, path: str, revision: str) -> str:
@@ -136,6 +144,7 @@ class ContractRepository:
         self.write(CONTRACTS.USB_DESCRIPTOR_HEADER.as_posix(), USB_DESCRIPTOR_HEADER)
         self.write(CONTRACTS.USB_DESCRIPTOR_SOURCE.as_posix(), USB_DESCRIPTOR_SOURCE)
         self.write(CONTRACTS.USB_APP_MAIN.as_posix(), USB_APP_MAIN)
+        self.write(CONTRACTS.ARDUINO_DSI_PANEL.as_posix(), ARDUINO_DSI_PANEL_SOURCE)
         for relative in CONTRACTS.BSP_EXTRA_MANIFESTS:
             self.write(
                 relative.as_posix(),
@@ -234,6 +243,49 @@ class ComponentContractTests(unittest.TestCase):
             I2S_MAIN_CMAKE.replace(" esp_psram", ""),
         )
         self.assertIn("I2S_PSRAM_COMPONENT_DEPENDENCY", self.repo.codes())
+
+    def test_arduino_dsi_phy_clock_must_be_revision_aware(self) -> None:
+        cases = {
+            "legacy macro": ARDUINO_DSI_PANEL_SOURCE.replace(
+                f".phy_clk_src = {CONTRACTS.ARDUINO_DSI_CLOCK_VALUE}",
+                ".phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT",
+            ),
+            "explicit rev3 source": ARDUINO_DSI_PANEL_SOURCE.replace(
+                f".phy_clk_src = {CONTRACTS.ARDUINO_DSI_CLOCK_VALUE}",
+                ".phy_clk_src = MIPI_DSI_PHY_PLLREF_CLK_SRC_XTAL",
+            ),
+            "missing field": ARDUINO_DSI_PANEL_SOURCE.replace(
+                f"    .phy_clk_src = {CONTRACTS.ARDUINO_DSI_CLOCK_VALUE},\n",
+                "",
+            ),
+            "later override": ARDUINO_DSI_PANEL_SOURCE.replace(
+                "esp_lcd_new_dsi_bus",
+                "bus_config.phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT;\nesp_lcd_new_dsi_bus",
+            ),
+            "unused safe config": """esp_lcd_dsi_bus_config_t safe_config = {
+    .phy_clk_src = static_cast<mipi_dsi_phy_pllref_clock_source_t>(0),
+};
+esp_lcd_dsi_bus_config_t bus_config = make_legacy_config();
+esp_lcd_new_dsi_bus(&bus_config, &mipi_dsi_bus);
+""",
+            "unbound call argument": ARDUINO_DSI_PANEL_SOURCE.replace(
+                "&bus_config, &mipi_dsi_bus",
+                "make_legacy_config(), &mipi_dsi_bus",
+            ),
+        }
+        for name, invalid in cases.items():
+            with self.subTest(name=name):
+                self.repo.write(CONTRACTS.ARDUINO_DSI_PANEL.as_posix(), invalid)
+                self.assertIn("ARDUINO_DSI_REVISION_CLOCK", self.repo.codes())
+
+    def test_arduino_dsi_phy_clock_ignores_commented_decoy(self) -> None:
+        source = (
+            "// .phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT,\n"
+            "/* .phy_clk_src = MIPI_DSI_PHY_PLLREF_CLK_SRC_XTAL, */\n"
+            + ARDUINO_DSI_PANEL_SOURCE
+        )
+        self.repo.write(CONTRACTS.ARDUINO_DSI_PANEL.as_posix(), source)
+        self.assertNotIn("ARDUINO_DSI_REVISION_CLOCK", self.repo.codes())
 
     def test_ov5647_portrait_default_is_required(self) -> None:
         support = "CONFIG_CAMERA_OV5647_MIPI_RAW8_800X1280_50FPS=y\n"

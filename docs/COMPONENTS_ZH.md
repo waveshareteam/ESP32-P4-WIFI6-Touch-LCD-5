@@ -23,11 +23,15 @@
 `esp_lcd_hx8394` 驱动目录。它们的主 manifest 从 ESP Component Registry
 （waveshare 命名空间）解析这两个组件：
 
-- BSP [`esp32_p4_wifi6_touch_lcd_5`](https://components.espressif.com/components/waveshare/esp32_p4_wifi6_touch_lcd_5) `^1.0.3`。
+- BSP [`esp32_p4_wifi6_touch_lcd_5`](https://components.espressif.com/components/waveshare/esp32_p4_wifi6_touch_lcd_5) `^1.0.4`。
 - HX8394 驱动 [`esp_lcd_hx8394`](https://components.espressif.com/components/waveshare/esp_lcd_hx8394) `^2.1.0`。
 
-示例 08 和 12 的 `bsp_extra` 封装使用相同的 BSP 范围 `^1.0.3`，不会覆盖示例中的
+示例 08 和 12 的 `bsp_extra` 封装使用相同的 BSP 范围 `^1.0.4`，不会覆盖示例中的
 直接依赖。
+
+最低版本设为 1.0.4，是因为 1.0.3 显式选择了旧版 `PLL_F20M` PHY 参考时钟。
+1.0.4 将时钟源保留为零，由 ESP-IDF 根据当前 `rev1_3` 或 `rev3_x` 芯片 profile
+选择正确的时钟源。除非替代版本保留等价的 revision-aware 行为，否则不要降低此版本下限。
 
 ## HX8394 初始化边界
 

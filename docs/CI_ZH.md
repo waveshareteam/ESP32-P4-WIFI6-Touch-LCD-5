@@ -62,7 +62,7 @@ Git diff 决定。
 
 ## 托管组件版本
 
-显示示例 07–12 从 ESP Component Registry（waveshare 命名空间）解析 LCD5 BSP `^1.0.3`
+显示示例 07–12 从 ESP Component Registry（waveshare 命名空间）解析 LCD5 BSP `^1.0.4`
 与 HX8394 驱动 `^2.1.0`。默认源码配置选择 rev3.x。独立的板级产品固件
 revision 任务不属于本次示例 CI 变更。
 

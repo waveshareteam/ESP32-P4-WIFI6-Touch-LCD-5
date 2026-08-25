@@ -41,7 +41,7 @@
 | 摄像头 | 2-lane MIPI-CSI 接口，可选配 OV5647 摄像头 |
 | USB | USB 转 UART 和 USB OTG 2.0 High Speed Type-C 接口 |
 | 扩展接口 | 40PIN GPIO 接口，可兼容部分树莓派 HAT；可能需要合适的排针转接 |
-| 板级支持 | 已发布 Registry 组件：`waveshare/esp32_p4_wifi6_touch_lcd_5` `^1.0.3` 与 `waveshare/esp_lcd_hx8394` `^2.1.0` |
+| 板级支持 | 已发布 Registry 组件：`waveshare/esp32_p4_wifi6_touch_lcd_5` `^1.0.4` 与 `waveshare/esp_lcd_hx8394` `^2.1.0` |
 | 硬件文件 | [产品原理图](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 完整的产品规格、接口和硬件使用说明请参阅
@@ -71,7 +71,7 @@
 完整的环境配置、连接方法和固件烧录步骤请参阅官方产品文档。
 
 示例默认配置选择 ESP32-P4 rev3.x 配置（`CONFIG_ESP32P4_REV_MIN_300` 与 250 MHz
-PSRAM）。显示示例 07–12 从 ESP Component Registry 解析 LCD5 BSP `^1.0.3` 与 HX8394
+PSRAM）。显示示例 07–12 从 ESP Component Registry 解析 LCD5 BSP `^1.0.4` 与 HX8394
 驱动 `^2.1.0`。独立 HX8394 默认配置会发送 I2C 命令序列，而 LCD5 BSP 为本开发板选择
 跳过该行为。依赖显示行为或变更任一版本前，必须在目标开发板上完成 HIL 验证。CI 工作流
 同时发布针对 rev1.x 芯片的显式 rev1_3 包；该 profile 使用 200 MHz PSRAM 配置。

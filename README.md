@@ -42,7 +42,7 @@ multimedia, edge-computing, and connected-device applications.
 | Camera | 2-lane MIPI-CSI interface with optional OV5647 camera |
 | USB | USB-to-UART and USB OTG 2.0 High Speed Type-C ports |
 | Expansion | 40-pin GPIO header compatible with selected Raspberry Pi HATs; a suitable pin-header adapter may be required |
-| Board support | Published Registry components: `waveshare/esp32_p4_wifi6_touch_lcd_5` `^1.0.3` and `waveshare/esp_lcd_hx8394` `^2.1.0` |
+| Board support | Published Registry components: `waveshare/esp32_p4_wifi6_touch_lcd_5` `^1.0.4` and `waveshare/esp_lcd_hx8394` `^2.1.0` |
 | Hardware files | [Schematic](hardware/schematic/ESP32-P4-WIFI6-Touch-LCD-5-Schematic.pdf) |
 
 For complete product specifications, interfaces, and hardware instructions, see the
@@ -76,7 +76,7 @@ The official product documentation contains the complete setup, connection, and
 firmware flashing instructions.
 
 The example defaults select the ESP32-P4 rev3.x profile (`CONFIG_ESP32P4_REV_MIN_300`
-and 250 MHz PSRAM). Display examples 07–12 resolve the LCD5 BSP `^1.0.3` and the
+and 250 MHz PSRAM). Display examples 07–12 resolve the LCD5 BSP `^1.0.4` and the
 HX8394 driver `^2.1.0` from the ESP Component Registry. The standalone HX8394
 default sends its I2C command sequence, while the LCD5 BSP selects the
 board-specific skip behavior. HIL on the target board is required before

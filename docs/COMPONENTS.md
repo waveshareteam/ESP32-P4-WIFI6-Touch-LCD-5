@@ -25,11 +25,17 @@ The six display-capable examples no longer carry local
 main manifests resolve both components from the ESP Component Registry
 (waveshare namespace):
 
-- BSP [`esp32_p4_wifi6_touch_lcd_5`](https://components.espressif.com/components/waveshare/esp32_p4_wifi6_touch_lcd_5) `^1.0.3`.
+- BSP [`esp32_p4_wifi6_touch_lcd_5`](https://components.espressif.com/components/waveshare/esp32_p4_wifi6_touch_lcd_5) `^1.0.4`.
 - HX8394 driver [`esp_lcd_hx8394`](https://components.espressif.com/components/waveshare/esp_lcd_hx8394) `^2.1.0`.
 
-The `bsp_extra` wrappers in examples 08 and 12 use the same BSP range `^1.0.3`;
+The `bsp_extra` wrappers in examples 08 and 12 use the same BSP range `^1.0.4`;
 they do not override the direct example dependency.
+
+Version 1.0.4 is the minimum because 1.0.3 explicitly selected the legacy
+`PLL_F20M` PHY reference. Version 1.0.4 leaves the source at zero so ESP-IDF
+selects the correct source for the active `rev1_3` or `rev3_x` silicon profile.
+Do not lower this floor unless the replacement preserves that revision-aware
+behavior.
 
 ## HX8394 initialization boundary
 

@@ -72,7 +72,7 @@ unfamiliar paths, and incomplete diff data.
 
 ## Managed component versions
 
-Display examples 07–12 resolve the LCD5 BSP `^1.0.3` and the HX8394 driver
+Display examples 07–12 resolve the LCD5 BSP `^1.0.4` and the HX8394 driver
 `^2.1.0` from the ESP Component Registry (waveshare namespace). Their default
 source configuration selects rev3.x. Independent product-firmware revision jobs
 remain outside this example CI change.
