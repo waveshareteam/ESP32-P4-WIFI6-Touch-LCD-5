@@ -50,9 +50,10 @@ For complete product specifications, interfaces, and hardware instructions, see 
 
 ## 🚀 Getting Started
 
-1. Install a supported ESP-IDF version and activate its environment.
-2. Open one of the projects under [`examples/esp-idf/`](examples/esp-idf/).
-3. Select the silicon profile, then build, flash, and monitor the project from
+1. To restore the factory demonstration, select the firmware for your product version and follow the instructions in [`firmware/`](firmware/).
+2. Install a supported ESP-IDF version and activate its environment.
+3. Open one of the projects under [`examples/esp-idf/`](examples/esp-idf/).
+4. Select the silicon profile, then build, flash, and monitor the project from
    its directory. `rev3_x` is the default for every repository example; use
    `rev1_3` only after a chip probe or other authoritative evidence confirms
    rev1.x ESP32-P4 silicon (including rev1.3). These profile names describe
@@ -152,12 +153,9 @@ example CI change.
 
 ## 📦 Factory Firmware
 
-[`firmware/ESP32-P4-WIFI6-Touch-LCD-5-FactoryOnly-260127.bin`](firmware/ESP32-P4-WIFI6-Touch-LCD-5-FactoryOnly-260127.bin)
-is a checked-in factory flashing image. It is not a CI build output or a source
-project. Source and build instructions for this factory image are not included in
-this repository yet and may be added in a later update. Follow the
-[official flashing documentation](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-5/Firmware-Flashing)
-before using it.
+Tested V1.3 and V3.2 factory firmware and flashing instructions are available
+in [`firmware/`](firmware/). Select the file appropriate for your product
+version.
 
 ## 📚 Documentation
 

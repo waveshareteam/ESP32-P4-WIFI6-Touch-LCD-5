@@ -1,2 +1,4 @@
 # Preserve cross-platform whitespace checks.
 * whitespace=trailing-space,space-before-tab,cr-at-eol
+
+firmware/*.bin binary

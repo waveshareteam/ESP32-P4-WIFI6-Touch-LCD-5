@@ -49,9 +49,10 @@
 
 ## 🚀 快速开始
 
-1. 安装受支持的 ESP-IDF 版本并激活其开发环境。
-2. 打开 [`examples/esp-idf/`](examples/esp-idf/) 下的任一工程。
-3. 在工程目录中选择芯片 profile，然后构建、烧录并打开串口监视器。仓库全部示例默认
+1. 如需恢复出厂演示，请在 [`firmware/`](firmware/) 中选择适合产品版本的固件，并按照目录内的说明烧录。
+2. 安装受支持的 ESP-IDF 版本并激活其开发环境。
+3. 打开 [`examples/esp-idf/`](examples/esp-idf/) 下的任一工程。
+4. 在工程目录中选择芯片 profile，然后构建、烧录并打开串口监视器。仓库全部示例默认
    使用 `rev3_x`；只有芯片探测或其他可信信息确认为 rev1.x ESP32-P4 芯片（包括 rev1.3）时，
    才使用 `rev1_3`。这些 profile 表示芯片 revision，不是 PCB 或产品硬件 revision；
    详见 [profile 对照表](docs/CI_ZH.md#esp32-p4-芯片-revision-profile)：
@@ -138,10 +139,8 @@ CI 只验证精确 Pull Request head SHA 的编译兼容性；硬件行为仍需
 
 ## 📦 出厂固件
 
-[`firmware/ESP32-P4-WIFI6-Touch-LCD-5-FactoryOnly-260127.bin`](firmware/ESP32-P4-WIFI6-Touch-LCD-5-FactoryOnly-260127.bin)
-是仓库中保存的出厂烧录镜像，不属于 CI 构建产物，也不是源码工程。该出厂镜像的源码和
-构建说明目前尚未包含在本仓库中，后续可能补充。使用前请先阅读
-[官方固件烧录文档](https://docs.waveshare.net/ESP32-P4-WIFI6-Touch-LCD-5/Firmware-Flashing)。
+[`firmware/`](firmware/) 提供已实测的 V1.3 和 V3.2 出厂固件及烧录说明，请根据产品版本
+选择对应文件。
 
 ## 📚 文档
 
